@@ -143,19 +143,19 @@ A VM is like **a separate computer inside your computer** — a software emulati
 flowchart TB
     subgraph Machine["Physical Machine"]
         HostOS[Host Operating System]
-        Hypervisor[Hypervisor\n<i>runs and manages VMs</i>]
+        Hypervisor["Hypervisor\n(runs and manages VMs)"]
         subgraph VM1["Virtual Machine 1"]
-            GuestOS1[Guest OS<br/>e.g. Windows]
+            GuestOS1["Guest OS\ne.g. Windows"]
             LibA[Libraries & Binaries]
             AppA[Application A]
         end
         subgraph VM2["Virtual Machine 2"]
-            GuestOS2[Guest OS<br/>e.g. Ubuntu]
+            GuestOS2["Guest OS\ne.g. Ubuntu"]
             LibB[Libraries & Binaries]
             AppB1[Application B]
         end
         subgraph VM3["Virtual Machine 3"]
-            GuestOS3[Guest OS<br/>e.g. Red Hat Linux]
+            GuestOS3["Guest OS\ne.g. Red Hat Linux"]
             LibB2[Libraries & Binaries]
             AppB2[Application B - instance 2]
         end
@@ -172,7 +172,7 @@ Key point: **each VM carries a full copy of a guest OS**, even though the applic
 flowchart TB
     subgraph Machine2["Physical Machine"]
         HostOS2[Host Operating System]
-        DockerEngine[Docker Engine\n<i>manages images & containers</i>]
+        DockerEngine["Docker Engine\n(manages images and containers)"]
         subgraph C1["Container A"]
             LibA2[Only libraries/binaries App A needs]
             AppA2[Application A]
@@ -238,9 +238,9 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    User([You, typing commands]) --> CLI[Docker CLI\n<i>command line interface</i>]
-    CLI -->|sends requests via| API[Docker API\n<i>internal messenger — not externally exposed</i>]
-    API --> Daemon[Docker Daemon\n<i>the "heart" of Docker</i>]
+    User([You, typing commands]) --> CLI["Docker CLI\n(command line interface)"]
+    CLI -->|sends requests via| API["Docker API\n(internal messenger - not externally exposed)"]
+    API --> Daemon["Docker Daemon\n(the heart of Docker)"]
     Daemon -->|manages| Images[(Images)]
     Daemon -->|manages| Containers[(Containers)]
     Daemon -->|pulls/pushes| Registry[(Remote Docker Registry)]
