@@ -346,7 +346,83 @@ The `--name` flag assigns a human-readable name instead of Docker's randomly gen
 
 > 💡 Some containers (like `hello-world`) are **designed to run once and exit automatically**. Others (like `nginx`, a web server) are **designed to run continuously** until you explicitly stop them.
 
-### 2.11 Running Multiple Containers From the Same Image
+### 2.11 Container Lifecycle Stages — Create, Start, Stop, Restart, Remove
+
+The instructor teaches that a container doesn't just "run" — it moves through **five distinct lifecycle stages**:
+
+```mermaid
+flowchart LR
+    Create["1. Create\n(container exists, has ID,\nbut is NOT running)"] --> Start["2. Start\n(container begins running,\napp is exposed)"]
+    Start --> Stop["3. Stop\n(container exists but\nis no longer running)"]
+    Stop --> Restart["4. Restart\n(stop + start; same\ncontainer ID & storage)"]
+    Stop --> Remove["5. Remove\n(container is deleted\nfrom the system)"]
+    Start --> Restart
+    Restart --> Start
+    Stop --> Start
+```
+
+| Stage | What happens | Key detail |
+|---|---|---|
+| **Create** | Container gets created with a dedicated container ID, but it is **not running yet** — it is only configured to start | The container exists, the ID is assigned, but the application inside is not executing |
+| **Start** | The container begins running — whatever is inside the container is exposed based on how you configured it | The application is now live and serving requests |
+| **Stop** | The container stops running but **is not deleted** — the container ID is still assigned and the container can be started again | The container still exists on disk; it simply isn't executing |
+| **Restart** | The container is stopped and then started again — the **container ID remains the same** and any storage the container uses is preserved | Useful when you need to refresh the container without destroying it |
+| **Remove** | The container is **deleted from the system entirely** — gone | Different from stop: stop preserves the container; remove destroys it |
+
+**Hands-on commands for each lifecycle stage:**
+```bash
+# 1. CREATE — container is created but NOT running
+docker create --name app-1 -p 3000:3000 <image>
+# Returns a container ID; container is visible in Docker Desktop but not running
+
+# 2. START — start an already-created (or previously stopped) container
+docker start app-1
+# The container is now running; verify with docker ps
+
+# 3. STOP — stop a running container (container still exists)
+docker stop app-1
+# docker ps shows nothing; docker ps -a still shows app-1 with status "Exited"
+
+# 4. RESTART — stop + start in one command (same container ID & storage)
+docker restart app-1
+# Container ID remains the same; useful for applying config changes
+
+# 5. REMOVE — delete the container from the system entirely
+docker stop app-1          # must stop first, or use -f
+docker rm app-1            # container is now gone
+# OR: force-remove a running container without stopping first
+docker rm -f app-1
+```
+
+**`docker run` vs `docker start` — the distinction most beginners miss:**
+
+| Command | What it does |
+|---|---|
+| `docker run` | **Creates a new container from an image AND starts it** — it is the combination of `docker create` + `docker start` in a single command |
+| `docker start` | **Only starts (or restarts) a previously created or stopped container** — it does NOT create a new container |
+
+> 💡 **Why would you use `docker create` separately instead of just `docker run`?** For advanced workflows or CI/CD pipelines where you need to create and configure a container before running it — e.g., create the container, do something with it (inspect, inject config), and *then* start it.
+
+### 2.12 Container IDs — Full vs Short, and How Docker Allows Shortcuts
+
+Every container is assigned a **SHA-256 hash** as its unique identifier. The full container ID is very long (64 characters), but Docker displays and accepts **shortened versions** for convenience:
+
+- When you run `docker run`, the **full container ID** is printed (64 chars)
+- When you run `docker ps`, Docker shows a **shortened version** (typically 12 characters)
+- In commands like `docker logs`, `docker stop`, `docker exec`, you can use **any unique prefix** — even just the first 3 characters, as long as they uniquely identify one container
+- You can also use the **container name** instead of the ID in all commands
+
+```bash
+# All of these are equivalent if "e55" uniquely identifies your container:
+docker logs e55abc123def4567890abcdef1234567890abcdef1234567890abcdef12345678   # full ID
+docker logs e55abc123def   # short ID (as shown by docker ps)
+docker logs e55             # first 3 characters (if unique)
+docker logs my-container    # container name
+```
+
+> ⚠️ If multiple containers share the same prefix (e.g., two containers starting with "e55"), Docker will return an error — you'll need to use more characters to disambiguate.
+
+### 2.13 Running Multiple Containers From the Same Image
 
 ```bash
 docker run -d --name nginx-1 -p 80:8080 nginx
@@ -367,7 +443,64 @@ The instructor hosts three demo images under his Docker Hub account for practice
 
 Exercise pattern demonstrated for each: `docker pull <image>` → `docker run -d -p <host>:<container> --name <name> <image>` → visit the mapped `localhost` port → observe the JSON/text response including the container ID and any env vars (or "no env set" if none were passed).
 
-### 2.13 Core Inspection & Lifecycle Commands (all demonstrated live)
+### 2.15 Docker Logs — Viewing, Following, and Filtering Container Output
+
+The `docker logs` command lets you view what's happening inside a container **without** getting inside it — crucial for debugging.
+
+```bash
+# Basic log viewing (prints logs generated up to this point, then exits)
+docker logs <container_id_or_name>
+
+# Follow logs LIVE (like tail -f) — logs stream in real time
+docker logs -f <container_id_or_name>
+
+# Show only the last N lines
+docker logs --tail 10 <container_id_or_name>
+
+# Show timestamps alongside each log line
+docker logs -t <container_id_or_name>
+
+# Show logs generated in the last N minutes
+docker logs --since 20m <container_id_or_name>
+```
+
+| Flag | What it does |
+|---|---|
+| (none) | Prints all logs generated so far, then exits — does **not** follow live |
+| `-f` | **Follow** — streams logs in real time as they're generated; the terminal stays attached (press Ctrl+C to stop following without stopping the container, provided the container runs in detached mode) |
+| `--tail <N>` | Shows only the last N log lines |
+| `-t` | Adds **timestamps** to each log line |
+| `--since <duration>` | Shows logs generated within the last duration (e.g., `10m`, `1h`, `30s`) |
+
+> 💡 Without `-f`, `docker logs` is a one-shot snapshot — if new logs are generated after you run the command, you won't see them unless you run the command again or use `-f`.
+
+### 2.16 Debugging Containers — `docker logs` vs `docker exec`
+
+The instructor emphasizes that these are **two complementary debugging skills** that every developer and DevOps engineer must master:
+
+| Tool | When to use | What it helps diagnose |
+|---|---|---|
+| `docker logs` | When you want to see what happened inside the container **without entering it** | Application crashes, error messages, stack traces, warnings, startup failures |
+| `docker exec -it <container> sh` | When you need to **get inside** the container and inspect/run commands interactively | Wrong environment variables, missing configuration files, missing dependencies, permission issues, wrong working directory, app output not visible in logs |
+
+**Practical debugging examples with `docker exec`:**
+```bash
+# Check if a specific environment variable is set correctly
+docker exec -it <container> sh
+printenv | grep DB_PASSWORD
+
+# Check installed language version (e.g., is it the right Python/Java?)
+python --version
+java -version
+
+# Check if a specific file exists
+ls -la /app/config.yml
+
+# Exit the container shell
+exit
+```
+
+### 2.17 Core Inspection & Lifecycle Commands (all demonstrated live)
 
 | Command | What it does |
 |---|---|
@@ -375,15 +508,55 @@ Exercise pattern demonstrated for each: `docker pull <image>` → `docker run -d
 | `docker ps -a` | Lists **all** containers (running + stopped/"exited") |
 | `docker ps -a -q` | Lists only container **IDs** (`-q` = quiet) — useful for scripting bulk operations |
 | `docker stop <name_or_id>` | Gracefully stops a running container (you can use either its name or its ID) |
+| `docker start <name_or_id>` | Starts a previously created or stopped container |
+| `docker restart <name_or_id>` | Stops and restarts a container (same ID and storage preserved) |
+| `docker rm <name_or_id>` | Removes (deletes) a stopped container; use `-f` to force-remove a running container |
 | `docker images` | Lists all locally cached images |
 | `docker images -q` | Lists only image IDs |
+| `docker rmi <image_id_or_name>` | Removes an image; fails if the image is used by a container (use `-f` to force) |
 | `docker pull <image>:<tag>` | Downloads an image **without** running it |
+| `docker logs <container>` | View container logs (add `-f` to follow live, `--tail N` for last N lines) |
 | `docker exec -it <container> sh` | Opens an **interactive shell inside a running container** — crucial for debugging |
 | `docker exec -it <container> printenv` | Lists environment variables **as seen from inside the container** |
 
 **Why `docker exec` matters:** it lets you step *inside* a live container as if you'd SSH'd into a tiny standalone machine — useful for checking whether an environment variable was correctly injected, inspecting files, or debugging why an app isn't behaving as expected.
 
-### 2.14 Writing Your Own Dockerfile & Building an Image
+### 2.18 Cleanup Commands — Pruning Containers, Images, and Everything
+
+Over time, stopped containers and unused images accumulate and consume disk space. Docker provides dedicated cleanup commands:
+
+```bash
+# Remove all STOPPED containers (prompts for confirmation)
+docker container prune
+
+# Remove all unused IMAGES (images not associated with any container)
+docker image prune
+
+# Nuclear option: remove ALL stopped containers, unused networks,
+# unused images, and all build cache in one command
+docker system prune -a
+```
+
+**Bulk removal commands (combining commands):**
+```bash
+# Remove ALL containers (running + stopped) — force flag required for running ones
+docker rm -f $(docker ps -aq)
+
+# Remove ALL images — force flag required if images are in use
+docker rmi -f $(docker images -q)
+```
+
+| Command | What it removes |
+|---|---|
+| `docker container prune` | All **stopped** containers |
+| `docker image prune` | All **unused** images (not associated with any container) |
+| `docker system prune -a` | All stopped containers + unused networks + unused images + all build cache |
+| `docker rm -f $(docker ps -aq)` | **All** containers (running + stopped), using the IDs from `docker ps -aq` |
+| `docker rmi -f $(docker images -q)` | **All** images, using the IDs from `docker images -q` |
+
+> ⚠️ You cannot remove an image if a container (even a stopped one) is using it — you must remove the container first, or use the `-f` (force) flag.
+
+### 2.19 Writing Your Own Dockerfile & Building an Image
 
 **The build workflow, exactly as demonstrated:**
 ```bash
@@ -398,6 +571,22 @@ docker run -d -p 8080:8080 myapp:1.0
 ```
 
 The `-t` flag **tags** the image at build time with a name and version (`name:tag`) so it's identifiable later. The trailing `.` tells Docker where the **build context** (Dockerfile + source files it needs) is located.
+
+#### Dockerfile Instructions — Detailed Breakdown (as taught line by line)
+
+The instructor goes through each Dockerfile instruction in detail, explaining what it does and showing examples for Java, Python, and Node.js:
+
+| Instruction | What it does | When it runs | Examples |
+|---|---|---|---|
+| **`FROM`** | Sets the **base image** (the runtime environment the container starts with) — always the **first line** of any Dockerfile | At build time | `FROM node:20`, `FROM python:3.10-slim`, `FROM eclipse-temurin:21-jdk` |
+| **`WORKDIR`** | Creates a folder inside the container and sets it as the **working directory** — all subsequent instructions execute inside this folder | At build time | `WORKDIR /app` |
+| **`COPY`** | Copies files from your **local machine** (build context) **into the container** | At build time | `COPY . .` (everything), `COPY package*.json ./`, `COPY target/*.jar app.jar` |
+| **`RUN`** | Executes commands **during the image build** — typically used to install dependencies | At build time | `RUN npm install`, `RUN pip install -r requirements.txt`, `RUN mvn clean package` |
+| **`EXPOSE`** | Documents the port the application listens on inside the container — does **NOT** actually publish the port (that's done with `-p` at runtime) | Documentation only | `EXPOSE 3000`, `EXPOSE 8080` |
+| **`CMD`** | Defines the **default startup command** that runs when the container starts | At container start | `CMD ["node", "app.js"]`, `CMD ["python", "main.py"]`, `CMD ["java", "-jar", "app.jar"]` |
+| **`ENTRYPOINT`** | Similar to CMD but defines a command that **cannot be overridden** by arguments passed to `docker run` | At container start | `ENTRYPOINT ["java", "-jar", "app.jar"]` |
+
+**Key insight about layers and caching:** Each instruction in a Dockerfile creates one **layer** in the image. Layers are cached — if a layer hasn't changed since the last build, Docker reuses it instead of rebuilding. If an early layer changes, **everything after it must be rebuilt**. This is why Dockerfiles typically copy dependency files (e.g., `package.json`) and install dependencies *before* copying source code — so that changing your app code doesn't trigger a full dependency reinstall.
 
 **Dockerfile examples for each language used in the course's microservices:**
 
@@ -443,7 +632,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 **Why every application's Dockerfile is different:** different languages/frameworks have completely different build and run steps — you cannot run a Spring Boot application the same way you run a Python application. Each Dockerfile encodes exactly what that specific application needs.
 
-### 2.15 Docker Tags — Deep Dive
+### 2.20 Docker Tags — Deep Dive
 
 > "A Docker tag is a version label attached to an image."
 
@@ -455,13 +644,15 @@ docker build -t myapp:latest .     # the latest available build
 ```
 If you don't provide a tag at all, Docker silently applies `:latest`. Tags are what let you **roll back** to a previous, known-good version of your image if a new release misbehaves in production.
 
+> ⚠️ **Critical production warning (emphasized multiple times in the transcript):** `latest` does **not** mean "the newest version" — it means "the image that was most recently *tagged* as `latest`." **Never rely on `latest` in production.** Always use explicit semantic version tags (e.g., `v1.0.0`, `v2.1.3`) for predictable deployment outcomes. `latest` is only safe for local development and learning.
+
 **Tagging for a registry push (the mandatory naming convention):**
 ```bash
 docker tag myapp:1.0 <dockerhub-username>/myapp:1.0
 ```
 > A beginner FAQ addressed directly in the transcript: *"Do I need to prefix my Docker Hub username?"* — **Yes, this is mandatory.** If you omit `<username>/` before the image name, the push to the remote registry will fail. This convention is how Docker Hub knows which account's namespace the image belongs to.
 
-### 2.16 Docker Registries — Deep Dive
+### 2.21 Docker Registries — Deep Dive
 
 **Why not just keep images on your local machine?** The same reason you push source code to GitHub instead of only keeping local Git history: **risk** (your machine could fail and you'd lose everything) and **collaboration** (a team, or the whole internet, needs to be able to pull the image).
 
@@ -482,7 +673,7 @@ docker tag myapp:1.0 <dockerhub-username>/myapp:1.0
 | **Public** | Anyone in the world can view, pull, and use the image | Open-source projects you want the world to use |
 | **Private** | Restricted to you or your team | Company/production software you don't want exposed |
 
-### 2.17 Docker Compose
+### 2.22 Docker Compose
 
 Used to run **multi-container applications** (e.g., an app plus its database) with one command instead of many separate `docker run` invocations.
 
@@ -516,7 +707,7 @@ docker compose up -d     # start in detached (background) mode
 docker compose down      # stop and remove everything Compose created
 ```
 
-### 2.18 Full Docker Command Reference (everything demonstrated)
+### 2.23 Full Docker Command Reference (everything demonstrated)
 
 ```bash
 # Installation verification
@@ -532,6 +723,14 @@ docker run -it <image> sh
 docker run -p <host_port>:<container_port> <image>
 docker run -p <host_port>:<container_port> -d --name <name> <image>
 
+# Container lifecycle (create / start / stop / restart / remove)
+docker create --name <name> -p <host_port>:<container_port> <image>
+docker start <container>
+docker stop <container>
+docker restart <container>
+docker rm <container>                    # must be stopped first
+docker rm -f <container>                 # force-remove even if running
+
 # Inspecting
 docker ps
 docker ps -a
@@ -539,17 +738,30 @@ docker ps -a -q
 docker images
 docker images -q
 
-# Lifecycle
-docker stop <container>
-docker exec -it <container> sh
-docker exec -it <container> printenv
+# Logs & debugging
+docker logs <container>                  # view logs (one-shot)
+docker logs -f <container>               # follow logs live
+docker logs --tail 10 <container>        # last 10 lines only
+docker logs -t <container>               # with timestamps
+docker logs --since 20m <container>      # logs from last 20 minutes
+docker exec -it <container> sh           # interactive shell inside container
+docker exec -it <container> printenv     # view environment variables
 
-# Pull / Build / Tag / Push
+# Images — pull / build / tag / push / remove
 docker pull <image>:<tag>
 docker build -t <name>:<tag> .
 docker tag <image>:<tag> <dockerhub-username>/<image>:<tag>
 docker login
 docker push <dockerhub-username>/<image>:<tag>
+docker rmi <image>                       # remove an image
+docker rmi -f <image>                    # force-remove (even if in use)
+
+# Cleanup & pruning
+docker container prune                   # remove all stopped containers
+docker image prune                       # remove all unused images
+docker system prune -a                   # remove everything unused (containers + images + networks + cache)
+docker rm -f $(docker ps -aq)            # force-remove ALL containers
+docker rmi -f $(docker images -q)        # force-remove ALL images
 
 # Compose
 docker compose up
@@ -1121,17 +1333,33 @@ docker --version
 docker info
 docker compose version
 
-# Run / manage containers
+# Run containers
 docker run hello-world
 docker run <image>
 docker run -d <image>
 docker run -it <image> sh
 docker run -p <host_port>:<container_port> <image>
 docker run -d --name <name> -p <host_port>:<container_port> <image>
+
+# Container lifecycle
+docker create --name <name> -p <host_port>:<container_port> <image>
+docker start <container>
+docker stop <container>
+docker restart <container>
+docker rm <container>                    # remove stopped container
+docker rm -f <container>                 # force-remove running container
+
+# Inspect containers
 docker ps
 docker ps -a
 docker ps -a -q
-docker stop <container>
+
+# Logs & debugging
+docker logs <container>
+docker logs -f <container>               # follow live
+docker logs --tail 10 <container>        # last N lines
+docker logs -t <container>               # with timestamps
+docker logs --since 20m <container>      # since duration
 docker exec -it <container> sh
 docker exec -it <container> printenv
 
@@ -1143,6 +1371,15 @@ docker build -t <name>:<tag> .
 docker tag <image>:<tag> <dockerhub-username>/<image>:<tag>
 docker login
 docker push <dockerhub-username>/<image>:<tag>
+docker rmi <image>                       # remove image
+docker rmi -f <image>                    # force-remove image
+
+# Cleanup
+docker container prune                   # remove all stopped containers
+docker image prune                       # remove unused images
+docker system prune -a                   # remove everything unused
+docker rm -f $(docker ps -aq)            # force-remove all containers
+docker rmi -f $(docker images -q)        # force-remove all images
 
 # Compose
 docker compose up
@@ -1250,14 +1487,27 @@ eksctl delete cluster --name <cluster> --region <region>
 | **Microservices** | An architecture of multiple independently deployable, independently scalable services |
 | **Port Mapping** | Docker's `-p hostPort:containerPort` mechanism forwarding a host port into a container's internal port |
 | **Detached Mode (`-d`)** | Running a Docker container in the background, freeing the terminal |
+| **Container Lifecycle** | The five stages a Docker container moves through: Create → Start → Stop → Restart → Remove |
+| **`docker create`** | Creates a container with an assigned ID but does NOT start it — used in advanced workflows where you need to configure before running |
+| **`docker start`** | Starts an already-created or previously-stopped container — unlike `docker run`, does NOT create a new container |
+| **`docker restart`** | Stops and restarts a container, preserving the same container ID and storage |
+| **`docker rm`** | Removes (deletes) a container from the system; requires the container to be stopped first, or use `-f` to force |
+| **`docker rmi`** | Removes a Docker image; fails if the image is used by any container, or use `-f` to force |
+| **Container ID** | A SHA-256 hash uniquely identifying a container; Docker allows using shortened prefixes (even 3 characters) if unique |
+| **`docker logs`** | Command to view container output logs; supports `-f` (follow live), `--tail N` (last N lines), `-t` (timestamps), `--since` (time filter) |
+| **`docker container prune`** | Removes all stopped containers to reclaim disk space |
+| **`docker image prune`** | Removes all unused images not associated with any container |
+| **`docker system prune -a`** | Nuclear cleanup: removes all stopped containers, unused networks, unused images, and build cache |
+| **Dockerfile Instructions** | The commands used inside a Dockerfile: `FROM` (base image), `WORKDIR` (working directory), `COPY` (files into container), `RUN` (build-time commands), `EXPOSE` (document port), `CMD` (startup command), `ENTRYPOINT` (non-overridable startup command) |
 | **Terraform** | Infrastructure-as-Code tool for provisioning cloud infrastructure via code *(mentioned as course scope, not hands-on in this transcript)* |
 
 ---
 
 ## Part 12 — How to Use These Notes for Revision
 
-1. **Docker (Part 2):** Re-run every command in Sections 2.6–2.17 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure, exactly as the course does).
+1. **Docker (Part 2):** Re-run every command in Sections 2.6–2.23 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure, exactly as the course does). Practice the full container lifecycle (Section 2.11): `docker create` → `docker start` → `docker stop` → `docker restart` → `docker rm`.
 2. **Kubernetes (Part 4):** Reproduce the full Section 4.6 walkthrough end-to-end locally: deploy → expose via NodePort → access in browser → delete a pod and watch it self-heal → scale to 5 replicas and watch it happen live with `-w`. This single sequence covers 80% of the "why Kubernetes" intuition.
 3. **ConfigMaps/Secrets (4.8):** Write your own `configmap.yaml` and `secret.yaml`, apply them, and use `kubectl exec ... -- printenv` to prove the values landed inside the pod — don't just read the YAML, verify it.
 4. **CI/CD (Parts 5–8):** Recreate the exact three-job GitHub Actions workflow in Section 7.3 against your own free GitHub + Docker Hub accounts before attempting the AWS EKS portion (which incurs real AWS costs) — get Jobs 1 and 2 fully green first.
-5. Use **Part 10** as a quick-reference cheat sheet during hands-on practice, and **Part 11** to self-test your recall of every term cold, out of context.
+5. **Debugging (Sections 2.15–2.16):** Practice `docker logs` (with `-f`, `--tail`, `--since`) and `docker exec -it <container> sh` on a running container. These are the two skills every DevOps engineer and developer needs.
+6. Use **Part 10** as a quick-reference cheat sheet during hands-on practice, and **Part 11** to self-test your recall of every term cold, out of context.
