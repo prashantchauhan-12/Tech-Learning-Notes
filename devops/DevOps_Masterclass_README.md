@@ -9,8 +9,22 @@
 - [Part 0 — Scope & How This Course Is Structured](#part-0--scope--how-this-course-is-structured)
 - [Part 1 — The DevOps Mindset](#part-1--the-devops-mindset)
 - [Part 2 — Docker: The Complete Deep Dive](#part-2--docker-the-complete-deep-dive)
+  - [2.24 VS Code Setup & Docker Extension](#224-vs-code-setup--docker-extension)
+  - [2.25 Course GitHub Repository Structure](#225-course-github-repository-structure)
+  - [2.26 Containerizing a Python App](#226-containerizing-a-python-app--full-walkthrough)
+  - [2.27 Containerizing a Node.js App](#227-containerizing-a-nodejs-app--full-walkthrough)
+  - [2.28 Containerizing a Spring Boot App](#228-containerizing-a-spring-boot-app--full-walkthrough)
+  - [2.29 .dockerignore](#229-dockerignore--excluding-files-from-the-build-context)
+  - [2.30 docker run -it Interactive Mode](#230-docker-run--it--interactive-terminal-mode)
 - [Part 3 — Monolith vs Microservices](#part-3--monolith-vs-microservices)
+  - [3.1 The Tax Calculator Microservices Project](#31-the-tax-calculator-microservices-project)
 - [Part 4 — Kubernetes: The Complete Deep Dive](#part-4--kubernetes-the-complete-deep-dive)
+  - [4.2.1 History: Borg → Kubernetes](#421-history-of-kubernetes--from-googles-borg-to-open-source)
+  - [4.2.2 Architecture: Control Plane & Worker Nodes](#422-kubernetes-architecture--control-plane--worker-nodes)
+  - [4.10 Labels, Selectors, and How Services Find Pods](#410-labels-selectors-and-how-services-find-pods)
+  - [4.11 Debugging Pods](#411-debugging-pods--essential-commands)
+  - [4.12 Writing Kubernetes YAML Manifests](#412-writing-kubernetes-yaml-manifests--from-command-line-to-files)
+  - [4.13 Deploying Microservices (Tax Calculator)](#413-deploying-microservices-to-kubernetes--tax-calculator-hands-on)
 - [Part 5 — CI/CD Concepts](#part-5--cicd-concepts)
 - [Part 6 — Jenkins vs GitHub Actions](#part-6--jenkins-vs-github-actions)
 - [Part 7 — Hands-on: Building the GitHub Actions Pipeline](#part-7--hands-on-building-the-github-actions-pipeline)
@@ -665,109 +679,379 @@ docker tag myapp:1.0 <dockerhub-username>/myapp:1.0
 | **Google Artifact Registry** | GCP | GCP Console → *Containers* | GCP's native registry (successor to the older "Google Container Registry"). Preferred for GCP-native orgs. |
 | **Azure Container Registry (ACR)** | Microsoft Azure | Azure Portal → *Container* products | Supports both Docker and OCI (Open Container Initiative) image formats; preferred for Azure-native orgs. |
 
-**Rule of thumb given in the course:** if your company/project lives inside one specific cloud ecosystem, use that cloud's native registry for easier IAM integration. If you're an individual developer or not tied to any one cloud, **default to Docker Hub**.
+### 2.24 VS Code Setup & Docker Extension
 
-**Public vs Private Registries/Repositories:**
-| Type | Who can access | When to use |
-|---|---|---|
-| **Public** | Anyone in the world can view, pull, and use the image | Open-source projects you want the world to use |
-| **Private** | Restricted to you or your team | Company/production software you don't want exposed |
+The instructor recommends **Visual Studio Code** as the IDE for the course — it's free, works with all programming languages (Python, JavaScript/Node.js, Java/Spring Boot), and has excellent Docker support.
 
-### 2.22 Docker Compose
+**Setup steps demonstrated:**
+1. Download VS Code from [code.visualstudio.com](https://code.visualstudio.com) (Windows/Mac/Linux)
+2. Open your project folder: **File → Open Folder** → navigate to the cloned repo
+3. Install the **Docker extension** (officially called **"Container Tools"** by Microsoft):
+   - Go to the Extensions panel (Ctrl+Shift+X)
+   - Search for "Docker" or "Container Tools"
+   - Install (48+ million downloads, very popular)
+   - After installation: Dockerfile files get a whale icon, you get syntax highlighting, auto-suggestions for instructions (`FROM`, `COPY`, `RUN`, `CMD`, etc.), and you can right-click a Dockerfile to build the image directly
 
-Used to run **multi-container applications** (e.g., an app plus its database) with one command instead of many separate `docker run` invocations.
+> 💡 **IntelliJ users:** If you use IntelliJ IDEA for Java/Spring Boot, go to **Settings → Plugins → Marketplace**, search "Docker", and install the Docker plugin. It provides similar features. The instructor demonstrates both IDEs.
 
-```yaml
-version: "3.9"
-services:
-  app:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - DB_HOST=db
-      - DB_PASSWORD=secret
-    depends_on:
-      - db
+### 2.25 Course GitHub Repository Structure
 
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_PASSWORD=secret
-    volumes:
-      - db-data:/var/lib/postgresql/data
-
-volumes:
-  db-data:
-```
-```bash
-docker compose version   # verify installation
-docker compose up        # start every service defined in docker-compose.yml
-docker compose up -d     # start in detached (background) mode
-docker compose down      # stop and remove everything Compose created
-```
-
-### 2.23 Full Docker Command Reference (everything demonstrated)
+The course uses a public GitHub repository with all source code. After cloning:
 
 ```bash
-# Installation verification
-docker --version
-docker info
-docker compose version
+git clone <repository-url>
+cd devops-masterclass
+```
 
-# Running containers
-docker run hello-world
-docker run <image>
-docker run -d <image>
-docker run -it <image> sh
-docker run -p <host_port>:<container_port> <image>
-docker run -p <host_port>:<container_port> -d --name <name> <image>
+**Repository folder structure (as demonstrated):**
+```
+devops-masterclass/
+├── docker/
+│   ├── app-1-hello/              # Simple "Hello World" apps (one per language)
+│   │   ├── node/                 # Node.js hello app
+│   │   │   ├── app.js
+│   │   │   └── package.json
+│   │   ├── python/               # Python hello app
+│   │   │   ├── main.py
+│   │   │   └── requirements.txt
+│   │   └── spring-boot/          # Spring Boot hello app
+│   │       └── hello-spring/     # Maven project (pom.xml, src/, etc.)
+│   └── app-2-tax-calculator/     # Microservices project (2 services × 3 languages)
+│       ├── node/
+│       │   ├── service-a/        # Price calculation service
+│       │   └── service-b/        # Tax lookup service
+│       ├── python/
+│       │   ├── service-a/
+│       │   └── service-b/
+│       └── spring/
+│           ├── service-a/
+│           └── service-b/
+└── k8s/                          # Kubernetes YAML manifests (added later)
+    ├── app-1-hello/
+    │   └── app.yaml
+    └── app-2-tax-calculator/
+        ├── service-a/
+        │   └── app.yaml
+        └── service-b/
+            └── app.yaml
+```
 
-# Container lifecycle (create / start / stop / restart / remove)
-docker create --name <name> -p <host_port>:<container_port> <image>
-docker start <container>
-docker stop <container>
-docker restart <container>
-docker rm <container>                    # must be stopped first
-docker rm -f <container>                 # force-remove even if running
+> 💡 **app-1-hello** = simple monolith apps for learning containerization. **app-2-tax-calculator** = the microservices project used to learn inter-service communication, Kubernetes deployment, and CI/CD.
 
-# Inspecting
-docker ps
-docker ps -a
-docker ps -a -q
-docker images
-docker images -q
+### 2.26 Containerizing a Python App — Full Walkthrough
 
-# Logs & debugging
-docker logs <container>                  # view logs (one-shot)
-docker logs -f <container>               # follow logs live
-docker logs --tail 10 <container>        # last 10 lines only
-docker logs -t <container>               # with timestamps
-docker logs --since 20m <container>      # logs from last 20 minutes
-docker exec -it <container> sh           # interactive shell inside container
-docker exec -it <container> printenv     # view environment variables
+**Step 1: Understand the source code**
 
-# Images — pull / build / tag / push / remove
-docker pull <image>:<tag>
-docker build -t <name>:<tag> .
-docker tag <image>:<tag> <dockerhub-username>/<image>:<tag>
+`main.py` — a Flask-based REST API (< 20 lines):
+```python
+from flask import Flask, jsonify
+import os
+import socket
+
+app = Flask(__name__)
+
+# Get environment variable and hostname (container ID)
+env = os.environ.get('MY_ENV', 'no env set')
+hostname = socket.gethostname()
+
+@app.route('/')
+def hello():
+    return jsonify({
+        'message': 'Hello from Python Flask app!',
+        'env': env,
+        'container': hostname
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=3000)
+```
+
+`requirements.txt` — lists the dependencies:
+```
+flask
+```
+
+**Key observations the instructor explains:**
+- `os.environ.get('MY_ENV', 'no env set')` — reads an environment variable; shows "no env set" if you don't pass one with `-e`
+- `socket.gethostname()` — returns the **container ID** when running inside Docker (proves which container handled the request)
+- The app runs on port 3000 inside the container
+
+**Step 2: Write the Dockerfile (line by line, as demonstrated)**
+
+```dockerfile
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 3000
+CMD ["python", "main.py"]
+```
+
+| Instruction | Why (explained in the video) |
+|---|---|
+| `FROM python:3.10-slim` | Base image with Python 3.10 pre-installed; `slim` = smaller image size, sufficient for simple apps |
+| `WORKDIR /app` | Creates `/app` inside the container and sets it as the working directory |
+| `COPY requirements.txt .` | Copies *only* the dependency file first (for layer caching — dependencies change less often than source code) |
+| `RUN pip install --no-cache-dir -r requirements.txt` | Installs dependencies *during the build* (not at runtime); `--no-cache-dir` avoids caching pip downloads to reduce image size |
+| `COPY . .` | Copies the rest of the source code (main.py, etc.) into the container |
+| `EXPOSE 3000` | Documents the intended port (doesn't actually publish it) |
+| `CMD ["python", "main.py"]` | Runs when the container starts |
+
+**Step 3: Build the image**
+```bash
+cd docker/app-1-hello/python
+docker build -t <your-dockerhub-username>/hello-python .
+```
+
+**Build output explained (instructor walks through each line):**
+1. "Loaded build definition from Dockerfile" — Docker found and read the Dockerfile
+2. "Step 1/5: FROM python:3.10-slim" — pulling the base image
+3. "Step 2/5: WORKDIR /app" — setting working directory
+4. "Step 3/5: COPY requirements.txt ." — copying dependency file
+5. "Step 4/5: RUN pip install..." — installing Flask inside the image
+6. "Step 5/5: COPY . ." — copying all source code
+7. "Exporting to image" — finalizing all layers into the image
+
+```bash
+docker images    # verify the image appears
+```
+
+**Step 4: Run the container**
+```bash
+docker run -d --name py-app -p 3000:3000 <your-dockerhub-username>/hello-python
+```
+
+Visit `http://localhost:3000` — you'll see:
+```json
+{"message": "Hello from Python Flask app!", "env": "no env set", "container": "e55abc123def"}
+```
+
+- **"no env set"** = because we didn't pass `-e MY_ENV=something`
+- **container ID** = matches the container ID from `docker ps`
+
+**Step 5: Push to Docker Hub**
+```bash
+docker login                        # authenticate (opens browser if first time)
+docker push <your-dockerhub-username>/hello-python
+```
+
+After pushing, verify on Docker Hub: your image appears under your account with the `latest` tag.
+
+### 2.27 Containerizing a Node.js App — Full Walkthrough
+
+**Step 1: Understand the source code**
+
+`app.js` — an Express.js REST API:
+```javascript
+const express = require('express');
+const os = require('os');
+
+const app = express();
+
+const PORT = process.env.PORT || 3000;
+const env = process.env.MY_ENV || 'no env set';
+const hostname = os.hostname();
+
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Hello from simple Node.js app!',
+        env: env,
+        container: hostname
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
+```
+
+`package.json`:
+```json
+{
+  "name": "hello-node",
+  "version": "1.0.0",
+  "description": "Simple Node.js app",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
+```
+
+**Step 2: Write the Dockerfile**
+```dockerfile
+FROM node:24-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --production
+COPY . .
+EXPOSE 3000
+CMD ["node", "app.js"]
+```
+
+| Instruction | Why |
+|---|---|
+| `FROM node:24-slim` | Node.js 24 LTS with slim base; `slim` = smaller image; 24 is the latest LTS |
+| `COPY package*.json ./` | Copies `package.json` (and `package-lock.json` if it exists) first for layer caching |
+| `RUN npm install --production` | Installs only production dependencies, skips devDependencies (smaller image) |
+| `COPY . .` | Copies the rest of the source code |
+| `CMD ["node", "app.js"]` | Start command passed as JSON array (exec form) |
+
+> 💡 **Why copy `package.json` first, then `COPY . .` separately?** Layer caching: if you only change `app.js` (not your dependencies), Docker reuses the cached `npm install` layer and only rebuilds the `COPY . .` layer — much faster rebuilds.
+
+**Step 3: Build, run, and push**
+```bash
+cd docker/app-1-hello/node
+
+# Build
+docker build -t <your-dockerhub-username>/hello-node .
+
+# Run
+docker run -d --name hello-node -p 3000:3000 <your-dockerhub-username>/hello-node
+
+# Visit http://localhost:3000
+
+# Push to Docker Hub
 docker login
-docker push <dockerhub-username>/<image>:<tag>
-docker rmi <image>                       # remove an image
-docker rmi -f <image>                    # force-remove (even if in use)
-
-# Cleanup & pruning
-docker container prune                   # remove all stopped containers
-docker image prune                       # remove all unused images
-docker system prune -a                   # remove everything unused (containers + images + networks + cache)
-docker rm -f $(docker ps -aq)            # force-remove ALL containers
-docker rmi -f $(docker images -q)        # force-remove ALL images
-
-# Compose
-docker compose up
-docker compose up -d
-docker compose down
+docker push <your-dockerhub-username>/hello-node
 ```
+
+The build output follows the same step-by-step layer pattern as the Python build.
+
+### 2.28 Containerizing a Spring Boot App — Full Walkthrough
+
+**Step 1: Understand the source code**
+
+`pom.xml` — Maven project using Java 21, Spring Boot Web:
+```xml
+<properties>
+    <java.version>21</java.version>
+</properties>
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+</dependencies>
+```
+
+`HelloController.java` — a simple REST controller:
+```java
+@RestController
+public class HelloController {
+
+    @Value("${MY_ENV:no env set}")
+    private String env;
+
+    @GetMapping("/")
+    public Map<String, String> hello() {
+        return Map.of(
+            "message", "Hello from Spring Boot!",
+            "env", env,
+            "container", InetAddress.getLocalHost().getHostName()
+        );
+    }
+}
+```
+
+**Step 2: Build the JAR file (required before Docker build)**
+
+The Spring Boot Dockerfile needs a compiled `.jar` file in a `target/` folder. You must build the project first:
+
+```bash
+cd docker/app-1-hello/spring-boot/hello-spring
+
+# Mac/Linux:
+./mvnw clean package -DskipTests
+
+# Windows:
+.\mvnw.cmd clean package -DskipTests
+```
+
+This creates `target/hello-spring-0.0.1-SNAPSHOT.jar`.
+
+> ⚠️ If you skip this step and try `docker build` immediately, it will **fail** because the `target/` folder doesn't exist yet.
+
+**Step 3: Write the Dockerfile**
+```dockerfile
+FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
+```
+
+| Instruction | Why |
+|---|---|
+| `FROM eclipse-temurin:21-jdk` | Base image with Java 21 JDK (Eclipse Temurin is the standard OpenJDK distribution); search "Eclipse Temurin" on Docker Hub |
+| `COPY target/*.jar app.jar` | Copies the built JAR from your local `target/` folder into the container as `app.jar` |
+| `EXPOSE 8080` | Spring Boot defaults to port 8080 |
+| `CMD ["java", "-jar", "app.jar"]` | Runs the JAR when container starts |
+
+**Step 4: Build, run, and push**
+```bash
+# Build (from the hello-spring directory where Dockerfile is)
+docker build -t <your-dockerhub-username>/hello-spring .
+
+# Run (note: Spring Boot uses port 8080, not 3000)
+docker run -d --name hello-spring -p 8080:8080 <your-dockerhub-username>/hello-spring
+
+# Visit http://localhost:8080
+
+# Check logs
+docker logs hello-spring
+
+# Push
+docker login
+docker push <your-dockerhub-username>/hello-spring
+```
+
+**IntelliJ vs VS Code for this workflow:** Both IDEs are shown in the video. IntelliJ has a dedicated Docker plugin (Settings → Plugins → search "Docker"). VS Code uses the Container Tools extension. Both provide Dockerfile syntax highlighting and auto-suggestions.
+
+### 2.29 `.dockerignore` — Excluding Files from the Build Context
+
+Like `.gitignore` for Git, Docker supports a `.dockerignore` file that tells Docker which files to **exclude** from the build context:
+
+```
+# .dockerignore
+node_modules
+.git
+.env
+*.log
+target/
+__pycache__
+```
+
+**Why it matters:**
+- **Reduces image size** — prevents unnecessary files from being copied into the container
+- **Speeds up builds** — Docker sends the build context to the daemon; fewer files = faster transfer
+- **Security** — prevents sensitive files (`.env`, credentials) from accidentally ending up in the image
+
+The instructor mentions `.dockerignore` multiple times during the build demos — Docker loads it automatically if it exists in the build context directory.
+
+### 2.30 `docker run -it` — Interactive Terminal Mode
+
+```bash
+docker run -it <image> sh
+```
+
+The `-it` flag runs the container in **interactive terminal mode** — you get a shell prompt inside the container. Useful for:
+- Testing/debugging a new image before writing a Dockerfile
+- Exploring the filesystem of a base image
+- Running ad-hoc commands inside a container
+
+```bash
+# Example: explore what's inside the Python base image
+docker run -it python:3.10-slim sh
+# Now you're inside the container:
+python --version   # Python 3.10.x
+pip list           # see pre-installed packages
+ls /               # explore filesystem
+exit               # leave the container
+```
+
+> ⚠️ Running without `-d` (detached mode) ties your terminal to the container. If you press Ctrl+C, it **stops the container**. Use `-d` for long-running services, `-it` only for interactive exploration.
 
 ---
 
@@ -783,6 +1067,37 @@ docker compose down
 | Language/framework choice | Usually one stack for everything | Different services can use different stacks (e.g., Node.js, Python, Spring Boot side by side) |
 
 The course's practice application is explicitly microservices-based, which is *why* the containerization module builds **separate Dockerfiles/images per service** (Node, Python, Spring Boot) rather than one Dockerfile for the whole app, and why the Kubernetes/CI-CD modules later repeat the same deployment pattern once per service.
+
+### 3.1 The Tax Calculator Microservices Project
+
+The course's hands-on microservices project is a **Tax Calculator** with two backend services:
+
+```mermaid
+flowchart LR
+    Browser["Browser / API Client"] -->|"GET /tax?amount=200&country=IN"| ServiceA["Service A\n(Price Service)\nPort 3000"]
+    ServiceA -->|"GET /tax/IN"| ServiceB["Service B\n(Tax Service)\nPort 4000"]
+    ServiceB -->|"{ tax: 8 }"| ServiceA
+    ServiceA -->|"{ total: 208,\ntax: 8,\namount: 200 }"| Browser
+```
+
+| Service | Responsibility | Default Port | How it's accessed |
+|---|---|---|---|
+| **Service A** (Price Service) | Accepts `amount` and `country` from the user, calls Service B to get the tax rate, calculates the final price, returns result | 3000 | Exposed to users (NodePort / LoadBalancer) |
+| **Service B** (Tax Service) | Returns the tax percentage for a given country code (IN=8%, US=10%, UK=20%, etc.) | 4000 | Internal only (ClusterIP) — only Service A calls it |
+
+**Inter-service communication:**
+- Service A needs the URL of Service B to call it
+- In Docker: you'd use `http://localhost:4000` or container names
+- In Kubernetes: you use the **Kubernetes service name** → `http://service-b:4000` (Kubernetes built-in DNS resolves service names automatically)
+
+**Environment variables used:**
+| Variable | Used By | Purpose |
+|---|---|---|
+| `TAX_SERVICE_URL` | Service A | URL to reach Service B (e.g., `http://service-b:4000`) |
+| `MY_ENV` | Both | A custom label to identify the environment (optional) |
+| `PORT` | Both | Override the default port (optional, defaults to 3000/4000) |
+
+**The project exists in 3 language variants** (Node.js, Python, Spring Boot) — the instructor containerizes each and deploys all to Kubernetes. The architecture is identical regardless of language.
 
 ---
 
@@ -834,6 +1149,49 @@ A **kitchen manager** is needed — someone who coordinates the workers automati
 > **Kubernetes (K8s)** is a **container orchestration platform** that manages containers for you **at scale** — automating deployment, scaling, healing, networking, and management of containerized applications.
 
 Your applications are already containerized via Docker; Kubernetes is the layer that manages **many** containers, across **many** machines, reliably.
+
+**Why "K8s"?** Kubernetes is long to say/type, so engineers shortened it: **K** + **8 letters** (ubernete) + **s** = **K8s**.
+
+### 4.2.1 History of Kubernetes — From Google's Borg to Open Source
+
+| Timeline | Event |
+|---|---|
+| **Early 2000s** | Google faces massive scale challenges — running millions of apps (Search, Gmail, YouTube) across thousands of machines. Manual server management is impossible. |
+| **~2003** | Google builds an internal system called **Borg** — automatically runs apps on multiple machines, restarts crashed apps, scales up/down, and distributes traffic. Borg worked so well Google ran *everything* on it. |
+| **2013-2014** | Docker popularizes containers — developers can now package apps cleanly, but Docker alone can't manage containers at scale (the same old problem returns). |
+| **2014** | Google takes ideas from Borg, rewrites the system from scratch, and **open-sources** it as **Kubernetes**. |
+| **2015** | Google donates Kubernetes to the **CNCF** (Cloud Native Computing Foundation) to ensure it stays vendor-neutral and not controlled by any single company. |
+| **Today** | Kubernetes is the **industry standard** for container orchestration. All major cloud providers support it: AWS (EKS), GCP (GKE), Azure (AKS). |
+
+> 💡 **Key takeaway:** Kubernetes = Borg ideas + containers + open source. It was born from a **real problem** Google faced at enormous scale.
+
+### 4.2.2 Kubernetes Architecture — Control Plane & Worker Nodes
+
+Kubernetes operates in a **cluster model** = Control Plane + Worker Nodes.
+
+```
+Kubernetes Cluster
+├── Control Plane (the brain — decides what should happen)
+│   ├── API Server      — entry gate; all commands go through here
+│   ├── Scheduler       — decides which node should run a particular pod
+│   ├── Controller Mgr  — continuously checks: "are 3 replicas running? If not, fix it"
+│   └── etcd            — the cluster's memory/database; stores desired vs actual state
+└── Worker Nodes (the muscles — actually run your apps)
+    ├── kubelet         — talks to control plane, starts/stops containers, reports health
+    ├── kube-proxy      — maintains network rules, enables pod-to-service communication
+    ├── Container Runtime — actually runs the containers (e.g., containerd)
+    └── Pods            — contain your running containers
+```
+
+**What happens when you run `kubectl apply -f app.yaml`:**
+1. **API Server** receives the request
+2. **Desired state** is saved in **etcd** (e.g., "3 replicas of nginx")
+3. **Scheduler** picks which worker node has enough CPU/memory to run the pod
+4. **kubelet** on the selected node creates the pod
+5. **Container Runtime** runs the container inside the pod
+6. **Controller Manager** continuously watches — if a pod crashes, it recreates it
+
+> 💡 **Don't memorize** — understand the flow. Control plane = brain (decides). Worker nodes = muscles (execute). Pods = cells (do the actual work).
 
 ### 4.3 Docker vs Kubernetes — Head-to-Head
 
@@ -1056,13 +1414,20 @@ kubectl get nodes
 # Pods
 kubectl get pods
 kubectl get pods -w                       # watch mode, live updates
+kubectl get pods --show-labels            # show labels assigned to pods
 kubectl describe pod <pod-name>
-kubectl exec -it <pod-name> -- sh
-kubectl exec -it <pod-name> -- printenv
+kubectl logs <pod-name>                   # view pod logs
+kubectl exec -it <pod-name> -- sh         # shell into a pod
+kubectl exec -it <pod-name> -- printenv   # view env vars inside pod
 kubectl delete pod <pod-name>             # deletion triggers auto-recreation if managed by a Deployment
+
+# Labels
+kubectl label pod <pod-name> app-           # remove label "app" from a pod
+kubectl label pod <pod-name> app=web        # add/update label
 
 # Deployments & scaling
 kubectl get deployments
+kubectl get deployments <name> -o yaml    # export deployment config as YAML
 kubectl scale deployment <name> --replicas=5
 kubectl set image deployment/<name> <container>=<image>:<tag>
 kubectl rollout status deployment/<name>
@@ -1075,13 +1440,285 @@ kubectl describe replicaset <name>        # shows Desired / Current / Ready coun
 kubectl expose deployment <name> --type=NodePort --port=80
 kubectl get svc
 kubectl get svc <name>
+kubectl get svc <name> -o yaml            # export service config as YAML
 
-# Applying manifests
+# Applying & deleting manifests
 kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
 kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
+kubectl apply -f <folder-name>/           # apply ALL manifests in a folder
+kubectl delete -f <folder-name>/          # delete ALL resources defined in a folder
+kubectl delete all --all                  # delete all pods, services, deployments
 ```
+
+### 4.10 Labels, Selectors, and How Services Find Pods
+
+**Labels** are key-value tags attached to pods to identify them:
+```yaml
+metadata:
+  labels:
+    app: web     # label: app=web
+```
+
+**Selectors** are how Services know which pods to route traffic to:
+```yaml
+# Inside a Service definition:
+spec:
+  selector:
+    app: web     # "route traffic to all pods with label app=web"
+```
+
+**Traffic flow:**
+```
+Browser → Service (selector: app=web) → Pod with label app=web
+```
+
+**Live demo — removing a label and watching self-healing:**
+```bash
+# View labels on pods
+kubectl get pods --show-labels
+
+# Remove the "app" label from a pod
+kubectl label pod <pod-name> app-
+# Result: "unlabeled" — Kubernetes immediately creates a NEW pod
+#         with the correct label (to match the declared replica count)
+# The unlabeled pod still runs but receives NO traffic (service ignores it)
+```
+
+This demonstrates Kubernetes' **declarative model**: it constantly works to match the **desired state** (e.g., "1 replica with label app=web") with the **actual state**.
+
+### 4.11 Debugging Pods — Essential Commands
+
+```bash
+# View logs of a pod
+kubectl logs <pod-name>
+
+# Shell into a running pod (interactive mode)
+kubectl exec -it <pod-name> -- sh
+ls                    # see filesystem
+cat /etc/nginx/nginx.conf   # read config files
+pwd                   # check working directory
+exit                  # leave the pod shell
+
+# Full pod details (image, IP, events, status)
+kubectl describe pod <pod-name>
+```
+
+The `describe` output includes: image name/version, pod IP, node it's running on, start time, container status, port mappings, mounted volumes, and **events** (pulled image, started container, etc.).
+
+### 4.12 Writing Kubernetes YAML Manifests — From Command Line to Files
+
+**Getting YAML from existing resources (as demonstrated):**
+```bash
+# Export a running deployment's config as YAML
+kubectl get deployments web -o yaml
+
+# Export a running service's config as YAML
+kubectl get svc web -o yaml
+```
+
+You can save this to a `.yaml` file and use it as a starting point for your own manifests.
+
+**A complete Deployment + Service YAML (`app.yaml`):**
+```yaml
+# --- Deployment ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-1-hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-1-hello
+  template:
+    metadata:
+      labels:
+        app: app-1-hello
+    spec:
+      containers:
+        - name: app-1-hello
+          image: decode007/hello-node:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MY_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: MY_ENV
+---
+# --- Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-1-hello
+spec:
+  type: NodePort
+  selector:
+    app: app-1-hello
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 31000
+```
+
+**Applying and deleting:**
+```bash
+kubectl apply -f app.yaml     # creates both Deployment and Service
+kubectl delete -f app.yaml    # removes both
+```
+
+### 4.13 Deploying Microservices to Kubernetes — Tax Calculator Hands-On
+
+This is the full walkthrough of deploying the **Tax Calculator** (Service A + Service B) to a local Kubernetes cluster.
+
+**Folder structure:**
+```
+k8s/app-2-tax-calculator/
+├── service-a/
+│   └── app.yaml      # Deployment + Service (NodePort, port 32000)
+└── service-b/
+    └── app.yaml      # Deployment + Service (ClusterIP, port 4000)
+```
+
+**Service B — `service-b/app.yaml` (internal tax service):**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-b
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-b
+  template:
+    metadata:
+      labels:
+        app: service-b
+    spec:
+      containers:
+        - name: service-b
+          image: embarkx/tax-service-b:latest
+          ports:
+            - containerPort: 4000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-b
+spec:
+  type: ClusterIP              # ← INTERNAL ONLY — not accessible from browser
+  selector:
+    app: service-b
+  ports:
+    - port: 4000
+      targetPort: 4000
+```
+
+> ⚠️ **Why ClusterIP (not NodePort)?** Service B is only needed for **inter-service communication** within the cluster. It should NOT be accessible from outside. Only Service A (the user-facing API) gets NodePort.
+
+**Service A — `service-a/app.yaml` (user-facing price service):**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-a
+  template:
+    metadata:
+      labels:
+        app: service-a
+    spec:
+      containers:
+        - name: service-a
+          image: embarkx/tax-service-a:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: TAX_SERVICE_URL
+              value: "http://service-b:4000"    # ← Uses K8s service name!
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-a
+spec:
+  type: NodePort                # ← Accessible from browser
+  selector:
+    app: service-a
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 32000           # ← Access at localhost:32000
+```
+
+> 💡 **The magic line:** `value: "http://service-b:4000"` — Service A calls Service B using the **Kubernetes service name** (`service-b`). Kubernetes' built-in DNS automatically resolves `service-b` to the ClusterIP of Service B's service. This is how inter-service communication works in K8s.
+
+**Deploy both services:**
+```bash
+cd k8s/app-2-tax-calculator
+
+# Deploy Service B first (it's the dependency)
+kubectl apply -f service-b/
+# Output: service/service-b created, deployment.apps/service-b created
+
+# Deploy Service A
+kubectl apply -f service-a/
+# Output: service/service-a created, deployment.apps/service-a created
+
+# Check pods
+kubectl get pods
+# NAME                         READY   STATUS    RESTARTS   AGE
+# service-a-7d9f...-x2k1p      1/1     Running   0          10s
+# service-b-5c8b...-q3j7r      1/1     Running   0          15s
+```
+
+**Test the API:**
+```bash
+# Access Service A (user-facing) at localhost:32000
+curl "http://localhost:32000/tax?amount=200&country=IN"
+# Response:
+# {
+#   "service_a_container": "fdz-ch...",
+#   "service_b_container": "wh2nb...",
+#   "amount": 200,
+#   "tax": 8,
+#   "total": 208
+# }
+```
+
+**Can you access Service B directly?** NO — it's ClusterIP, so `curl http://localhost:4000` will **fail**. It's only reachable from within the Kubernetes cluster.
+
+**Scale Service A:**
+```bash
+# Edit service-a/app.yaml → change replicas: 1 to replicas: 2
+kubectl apply -f service-a/
+kubectl get pods
+# Now shows 2 pods for service-a!
+
+# Scale back down
+# Change replicas: 2 back to replicas: 1
+kubectl apply -f service-a/
+# The extra pod terminates
+```
+
+**Clean up everything:**
+```bash
+kubectl delete -f service-a/
+kubectl delete -f service-b/
+# Both deployments and services are removed
+kubectl get pods
+# No resources found
+```
+
+> 💡 **You can also separate Deployment and Service into different files:** Instead of one `app.yaml` with both, you can have `deployment.yaml` and `service.yaml` inside each service folder. Both approaches work.
 
 ---
 
@@ -1089,13 +1726,33 @@ kubectl apply -f secret.yaml
 
 ### 5.1 The Manual Workflow Problem (Explicitly Diagrammed in the Course)
 
+**Before CI/CD, the entire software delivery process was manual:**
+
 ```mermaid
 flowchart LR
-    A[Developer writes & commits code] --> B[Manually build Docker image]
-    B --> C[Manually push image to registry]
-    C --> D[Manually deploy to production]
-    D --> E[Someone manually verifies\nthe app is live & the right version deployed]
+    A[Developer writes code] --> B[Manually run tests]
+    B --> C[Manually build the app locally]
+    C --> D[Manually build Docker image]
+    D --> E[Manually push image to registry]
+    E --> F[Manually deploy to production]
+    F --> G[Manually verify the app is live]
 ```
+
+**Step-by-step (as walked through in the video):**
+1. Developer writes code and pushes a new feature/bug fix
+2. Developer **manually runs tests** on their local machine
+3. Developer **manually builds the application** (e.g., `mvn clean package` for Java, `npm run build` for Node.js)
+4. Developer **manually builds a Docker image** with the new code
+5. Developer **manually pushes** the Docker image to a remote Docker registry (Docker Hub, ECR, etc.)
+6. Developer or ops team **manually deploys** the new image to the Kubernetes cluster or server
+7. Someone **manually verifies** the app is running correctly
+
+**Every single step is:**
+- **Slow** — takes time for a human to do each step
+- **Error-prone** — humans make mistakes (wrong tag, forgot to push, deployed to wrong environment)
+- **Not repeatable** — different developers might follow slightly different steps
+- **Not auditable** — no record of what was done when
+
 Every single arrow above represents a **manual, human-dependent** step — described explicitly as slow and risky.
 
 ### 5.2 Definitions
@@ -1402,8 +2059,14 @@ kubectl exec -it <pod> -- sh
 kubectl exec -it <pod> -- printenv
 kubectl delete pod <name>
 
+# Labels
+kubectl get pods --show-labels
+kubectl label pod <name> app-               # remove label
+kubectl label pod <name> app=web            # add/update label
+
 # Deployments / scaling
 kubectl get deployments
+kubectl get deployments <name> -o yaml      # export as YAML
 kubectl scale deployment <name> --replicas=5
 kubectl set image deployment/<name> <container>=<image>:<tag>
 kubectl rollout status deployment/<name>
@@ -1416,12 +2079,16 @@ kubectl describe replicaset <name>
 kubectl expose deployment <name> --type=NodePort --port=80
 kubectl get svc
 kubectl get svc <name>
+kubectl get svc <name> -o yaml
 
 # Manifests
 kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
 kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
+kubectl apply -f <folder>/                  # apply all manifests in folder
+kubectl delete -f <folder>/                 # delete all from folder
+kubectl delete all --all                    # delete everything
 ```
 
 ### AWS EKS
@@ -1499,15 +2166,29 @@ eksctl delete cluster --name <cluster> --region <region>
 | **`docker image prune`** | Removes all unused images not associated with any container |
 | **`docker system prune -a`** | Nuclear cleanup: removes all stopped containers, unused networks, unused images, and build cache |
 | **Dockerfile Instructions** | The commands used inside a Dockerfile: `FROM` (base image), `WORKDIR` (working directory), `COPY` (files into container), `RUN` (build-time commands), `EXPOSE` (document port), `CMD` (startup command), `ENTRYPOINT` (non-overridable startup command) |
+| **`.dockerignore`** | A file (like `.gitignore`) that tells Docker which files to exclude from the build context — reduces image size, speeds up builds, prevents sensitive files from leaking |
+| **Borg** | Google's internal predecessor to Kubernetes (early 2000s) — automatically managed millions of apps across thousands of machines; Kubernetes was born from Borg's ideas |
+| **CNCF** | Cloud Native Computing Foundation — the vendor-neutral organization that governs Kubernetes since Google donated it in 2015 |
+| **Eclipse Temurin** | The standard OpenJDK distribution used as a Docker base image for Java/Spring Boot apps (e.g., `eclipse-temurin:21-jdk`) |
+| **Maven Wrapper (`mvnw`)** | A script included with Spring Boot projects that runs Maven without requiring a global Maven installation; `./mvnw` (Mac/Linux), `.\mvnw.cmd` (Windows) |
+| **Labels** | Key-value tags attached to Kubernetes pods (e.g., `app: web`) used to identify and group them |
+| **Selectors** | Kubernetes mechanism for Services to find pods — matches labels (e.g., `selector: app: web` routes traffic to all pods with that label) |
+| **Flask** | A lightweight Python web framework used in the course's Python microservice demos |
+| **Express.js** | A Node.js web framework used in the course's Node.js microservice demos |
+| **Inter-service Communication** | How microservices talk to each other within a Kubernetes cluster — using service names (e.g., `http://service-b:4000`) resolved by K8s built-in DNS |
+| **Build Context** | The directory Docker uses when building an image — specified by the `.` at the end of `docker build -t name .` |
+| **Layer Caching** | Docker's optimization where unchanged Dockerfile instructions reuse cached layers from previous builds — order of instructions matters for cache efficiency |
 | **Terraform** | Infrastructure-as-Code tool for provisioning cloud infrastructure via code *(mentioned as course scope, not hands-on in this transcript)* |
 
 ---
 
 ## Part 12 — How to Use These Notes for Revision
 
-1. **Docker (Part 2):** Re-run every command in Sections 2.6–2.23 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure, exactly as the course does). Practice the full container lifecycle (Section 2.11): `docker create` → `docker start` → `docker stop` → `docker restart` → `docker rm`.
-2. **Kubernetes (Part 4):** Reproduce the full Section 4.6 walkthrough end-to-end locally: deploy → expose via NodePort → access in browser → delete a pod and watch it self-heal → scale to 5 replicas and watch it happen live with `-w`. This single sequence covers 80% of the "why Kubernetes" intuition.
-3. **ConfigMaps/Secrets (4.8):** Write your own `configmap.yaml` and `secret.yaml`, apply them, and use `kubectl exec ... -- printenv` to prove the values landed inside the pod — don't just read the YAML, verify it.
-4. **CI/CD (Parts 5–8):** Recreate the exact three-job GitHub Actions workflow in Section 7.3 against your own free GitHub + Docker Hub accounts before attempting the AWS EKS portion (which incurs real AWS costs) — get Jobs 1 and 2 fully green first.
-5. **Debugging (Sections 2.15–2.16):** Practice `docker logs` (with `-f`, `--tail`, `--since`) and `docker exec -it <container> sh` on a running container. These are the two skills every DevOps engineer and developer needs.
-6. Use **Part 10** as a quick-reference cheat sheet during hands-on practice, and **Part 11** to self-test your recall of every term cold, out of context.
+1. **Docker Basics (Part 2, Sections 2.1–2.23):** Re-run every command in Sections 2.6–2.23 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure, exactly as the course does). Practice the full container lifecycle (Section 2.11): `docker create` → `docker start` → `docker stop` → `docker restart` → `docker rm`.
+2. **Containerize Real Apps (Sections 2.26–2.28):** Reproduce the full Python, Node.js, and Spring Boot containerization walkthroughs. Write each Dockerfile from scratch, build each image, run each container, and verify the JSON API response in your browser. This is the #1 skill for DevOps.
+3. **Kubernetes (Part 4):** Reproduce the full Section 4.6 walkthrough end-to-end locally: deploy → expose via NodePort → access in browser → delete a pod and watch it self-heal → scale to 5 replicas and watch it happen live with `-w`. This single sequence covers 80% of the "why Kubernetes" intuition.
+4. **Microservices on K8s (Section 4.13):** Deploy the Tax Calculator (Service A + Service B) using the YAML manifests provided. Verify inter-service communication works (Service A calls Service B via ClusterIP). Try accessing Service B directly from your browser — it should fail (proving ClusterIP works). Scale Service A to 2 replicas and back.
+5. **ConfigMaps/Secrets (4.8):** Write your own `configmap.yaml` and `secret.yaml`, apply them, and use `kubectl exec ... -- printenv` to prove the values landed inside the pod — don't just read the YAML, verify it.
+6. **CI/CD (Parts 5–8):** Recreate the exact three-job GitHub Actions workflow in Section 7.3 against your own free GitHub + Docker Hub accounts before attempting the AWS EKS portion (which incurs real AWS costs) — get Jobs 1 and 2 fully green first.
+7. **Debugging (Sections 2.15–2.16, 4.11):** Practice `docker logs` (with `-f`, `--tail`, `--since`) and `docker exec -it <container> sh` on a running container. For Kubernetes, practice `kubectl logs`, `kubectl exec`, and `kubectl describe pod`. These are the core debugging skills every DevOps engineer and developer needs.
+8. Use **Part 10** as a quick-reference cheat sheet during hands-on practice, and **Part 11** to self-test your recall of every term cold, out of context.
