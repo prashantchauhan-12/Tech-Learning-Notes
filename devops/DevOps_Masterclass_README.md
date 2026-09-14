@@ -1,6 +1,6 @@
 # Full Stack AI DevOps Masterclass — Complete Revision Notes (Expanded Edition)
 
-> Rebuilt in full detail from the ~11.5-hour video transcript (`full_devops_transcript.txt`). This edition preserves the **explanations, analogies, live-demo walkthroughs, and command-by-command reasoning** from the video — not just a summary — rewritten in clear technical English, with every command, YAML/Dockerfile snippet, comparison table, and diagram you need for deep revision.
+> Comprehensive revision notes covering Docker, Kubernetes, Microservices, CI/CD with GitHub Actions, and AWS EKS deployment. Includes all commands, YAML/Dockerfile snippets, comparison tables, diagrams, source code, and detailed explanations needed for deep revision.
 
 ---
 
@@ -38,17 +38,17 @@
 
 ## Part 0 — Scope & How This Course Is Structured
 
-The instructor markets this as a **"Full Stack AI DevOps Masterclass with Microservices"** — a ~40-hour (and growing) Udemy flagship course, of which this transcript is one ~11.5-hour recording/upload. He explains the title piece by piece:
+This is a **"Full Stack AI DevOps Masterclass with Microservices"** — a ~40-hour Udemy course. The title breaks down as:
 
 - **"Full Stack"** → the course teaches DevOps for **full-stack applications** (frontend + backend), not just backend services.
 - **"AI"** → not a marketing buzzword (his words) — the course includes **AI-assisted DevOps strategies** to accelerate your workflow, in addition to the core DevOps content.
-- **"DevOps Masterclass"** → aimed at **both** DevOps engineers and developers who want to understand DevOps — explicitly designed for **absolute beginners**, starting from "What is DevOps?" with zero assumed knowledge of Docker, Kubernetes, IaC, or cloud.
+- **"DevOps Masterclass"** → aimed at **both** DevOps engineers and developers who want to understand DevOps — designed for **absolute beginners**, starting from "What is DevOps?" with zero assumed knowledge of Docker, Kubernetes, IaC, or cloud.
 - **"Microservices"** → the hands-on project used throughout is a **microservices-based, production-style application** (with separate Node.js, Python, and Spring Boot/Java services), not a single monolith.
 
-**Promised curriculum order (as stated in the intro/outro):**
+**Curriculum order:**
 DevOps mindset → Docker (containerize monolith *and* microservices) → Kubernetes (local, then cloud) → Infrastructure as Code with Terraform → AWS + Azure + GCP → CI/CD with Jenkins and GitHub Actions.
 
-**What is actually taught in hands-on depth in *this* transcript file**, hour by hour:
+**What is covered in hands-on depth**, hour by hour:
 
 | Time range | Topic actually covered in depth |
 |---|---|
@@ -67,7 +67,7 @@ DevOps mindset → Docker (containerize monolith *and* microservices) → Kubern
 ### 1.1 Formal Definition
 > "DevOps is a way of building and operating software where development and operations work together, with shared responsibility, to ship features faster, safer, and more reliably — with heavy use of automation."
 
-The instructor is emphatic on one point, repeated multiple times: **DevOps is *not* a tool.** Docker, Kubernetes, CI/CD, Terraform — these are tools. DevOps itself is a **culture, a practice, and a workflow** that brings shared ownership across the software lifecycle: **plan → build → deploy → test → operate → improve.**
+**DevOps is *not* a tool.** Docker, Kubernetes, CI/CD, Terraform — these are tools. DevOps itself is a **culture, a practice, and a workflow** that brings shared ownership across the software lifecycle: **plan → build → deploy → test → operate → improve.**
 
 ### 1.2 Before DevOps: Two Separate Teams
 
@@ -119,7 +119,7 @@ flowchart LR
 
 ## Part 2 — Docker: The Complete Deep Dive
 
-This is the single most detailed topic in the transcript (roughly 4 hours). The instructor teaches it through a narrative scenario before ever touching a command — reproduced here in full because it's the mental model everything else builds on.
+This is the most detailed topic (roughly 4 hours). It starts with a narrative scenario before ever touching a command — included here in full because it's the mental model everything else builds on.
 
 ### 2.1 The Problem, Told as a Story: Sarah and John
 
@@ -145,12 +145,12 @@ Containers are **portable** and run identically on any system that supports Dock
 
 ### 2.3 Docker vs Virtual Machines — The Concept Beginners Most Confuse
 
-This is presented as one of the most important distinctions to internalize.
+One of the most important distinctions to internalize.
 
 **What is a Virtual Machine (VM)?**
 A VM is like **a separate computer inside your computer** — a software emulation of a physical machine, created and managed by **virtualization software** (VMware, VirtualBox, Hyper-V). Each VM gets its own **virtual hardware**: its own CPU allocation, memory, storage, and network interfaces, and can run its own operating system (Windows, Linux, macOS) completely independently of the others and of the host.
 
-*Example given:* On a machine with 16 GB RAM, you could create 2 VMs and allocate 5 GB RAM to each; each VM operates strictly within its allotted resources, in full isolation from the others — "it's like buying separate physical computers, except you don't have to."
+*Example:* On a machine with 16 GB RAM, you could create 2 VMs and allocate 5 GB RAM to each; each VM operates strictly within its allotted resources, in full isolation from the others — it's like buying separate physical computers, except you don't have to.
 
 **VM Architecture:**
 ```mermaid
@@ -207,7 +207,7 @@ flowchart TB
 ```
 Docker containers **do not carry a full guest OS** — they share the host machine's OS **kernel** and only package the specific libraries/binaries the application actually needs. This is exactly why containers are dramatically lighter than VMs, start almost instantly, and let you run many more of them on the same hardware.
 
-**Full Comparison Table (as taught):**
+**Full Comparison Table:**
 
 | Dimension | Virtual Machines | Docker Containers |
 |---|---|---|
@@ -238,7 +238,7 @@ flowchart LR
     REG -->|docker pull| Anywhere[Any Docker-enabled machine]
 ```
 
-| Term | Explanation (as taught) |
+| Term | Explanation |
 |---|---|
 | **Docker Image** | A **template/blueprint** that defines what a container should contain and how it should run — lightweight and **read-only**. |
 | **Docker Container** | A **running instance** of an image — this is where your application actually executes. **One image can spin up many containers.** |
@@ -362,7 +362,7 @@ The `--name` flag assigns a human-readable name instead of Docker's randomly gen
 
 ### 2.11 Container Lifecycle Stages — Create, Start, Stop, Restart, Remove
 
-The instructor teaches that a container doesn't just "run" — it moves through **five distinct lifecycle stages**:
+A container doesn't just "run" — it moves through **five distinct lifecycle stages**:
 
 ```mermaid
 flowchart LR
@@ -445,9 +445,9 @@ docker run -d --name nginx-3 -p 8082:8080 nginx
 ```
 This proves you can spin up **many containers from a single image**, each independently mapped to a different host port (`localhost:80`, `localhost:8081`, `localhost:8082` are all simultaneously live, separate instances) — while `localhost:8083` (unmapped) correctly shows nothing.
 
-### 2.12 Practice Images (used in the course's hands-on challenge)
+### 2.12 Practice Images
 
-The instructor hosts three demo images under his Docker Hub account for practice, one per backend language, each simply printing a "hello" message plus the container ID and any injected environment variables:
+Three demo images are available on Docker Hub for practice, one per backend language, each printing a "hello" message plus the container ID and any injected environment variables:
 
 | Image | Language | Notes |
 |---|---|---|
@@ -455,7 +455,7 @@ The instructor hosts three demo images under his Docker Hub account for practice
 | `<username>/hello-python` | Python | Runs on port 3000 inside the container by default |
 | `<username>/hello-spring` | Java / Spring Boot | Runs on port 8080 inside the container by default |
 
-Exercise pattern demonstrated for each: `docker pull <image>` → `docker run -d -p <host>:<container> --name <name> <image>` → visit the mapped `localhost` port → observe the JSON/text response including the container ID and any env vars (or "no env set" if none were passed).
+Exercise pattern: `docker pull <image>` → `docker run -d -p <host>:<container> --name <name> <image>` → visit the mapped `localhost` port → observe the JSON/text response including the container ID and any env vars (or "no env set" if none were passed).
 
 ### 2.15 Docker Logs — Viewing, Following, and Filtering Container Output
 
@@ -490,7 +490,7 @@ docker logs --since 20m <container_id_or_name>
 
 ### 2.16 Debugging Containers — `docker logs` vs `docker exec`
 
-The instructor emphasizes that these are **two complementary debugging skills** that every developer and DevOps engineer must master:
+These are **two complementary debugging skills** that every developer and DevOps engineer must master:
 
 | Tool | When to use | What it helps diagnose |
 |---|---|---|
@@ -514,7 +514,7 @@ ls -la /app/config.yml
 exit
 ```
 
-### 2.17 Core Inspection & Lifecycle Commands (all demonstrated live)
+### 2.17 Core Inspection & Lifecycle Commands
 
 | Command | What it does |
 |---|---|
@@ -572,7 +572,7 @@ docker rmi -f $(docker images -q)
 
 ### 2.19 Writing Your Own Dockerfile & Building an Image
 
-**The build workflow, exactly as demonstrated:**
+**The build workflow:**
 ```bash
 # 1. Build an image from the Dockerfile in the current directory ('.' = build context)
 docker build -t myapp:1.0 .
@@ -586,9 +586,9 @@ docker run -d -p 8080:8080 myapp:1.0
 
 The `-t` flag **tags** the image at build time with a name and version (`name:tag`) so it's identifiable later. The trailing `.` tells Docker where the **build context** (Dockerfile + source files it needs) is located.
 
-#### Dockerfile Instructions — Detailed Breakdown (as taught line by line)
+#### Dockerfile Instructions — Detailed Breakdown
 
-The instructor goes through each Dockerfile instruction in detail, explaining what it does and showing examples for Java, Python, and Node.js:
+Each Dockerfile instruction explained with examples for Java, Python, and Node.js:
 
 | Instruction | What it does | When it runs | Examples |
 |---|---|---|---|
@@ -602,7 +602,7 @@ The instructor goes through each Dockerfile instruction in detail, explaining wh
 
 **Key insight about layers and caching:** Each instruction in a Dockerfile creates one **layer** in the image. Layers are cached — if a layer hasn't changed since the last build, Docker reuses it instead of rebuilding. If an early layer changes, **everything after it must be rebuilt**. This is why Dockerfiles typically copy dependency files (e.g., `package.json`) and install dependencies *before* copying source code — so that changing your app code doesn't trigger a full dependency reinstall.
 
-**Dockerfile examples for each language used in the course's microservices:**
+**Dockerfile examples for each language:**
 
 **Node.js:**
 ```dockerfile
@@ -658,21 +658,19 @@ docker build -t myapp:latest .     # the latest available build
 ```
 If you don't provide a tag at all, Docker silently applies `:latest`. Tags are what let you **roll back** to a previous, known-good version of your image if a new release misbehaves in production.
 
-> ⚠️ **Critical production warning (emphasized multiple times in the transcript):** `latest` does **not** mean "the newest version" — it means "the image that was most recently *tagged* as `latest`." **Never rely on `latest` in production.** Always use explicit semantic version tags (e.g., `v1.0.0`, `v2.1.3`) for predictable deployment outcomes. `latest` is only safe for local development and learning.
+> ⚠️ **Critical production warning:** `latest` does **not** mean "the newest version" — it means "the image that was most recently *tagged* as `latest`." **Never rely on `latest` in production.** Always use explicit semantic version tags (e.g., `v1.0.0`, `v2.1.3`) for predictable deployment outcomes. `latest` is only safe for local development and learning.
 
 **Tagging for a registry push (the mandatory naming convention):**
 ```bash
 docker tag myapp:1.0 <dockerhub-username>/myapp:1.0
 ```
-> A beginner FAQ addressed directly in the transcript: *"Do I need to prefix my Docker Hub username?"* — **Yes, this is mandatory.** If you omit `<username>/` before the image name, the push to the remote registry will fail. This convention is how Docker Hub knows which account's namespace the image belongs to.
+> A beginner FAQ: *"Do I need to prefix my Docker Hub username?"* — **Yes, this is mandatory.** If you omit `<username>/` before the image name, the push to the remote registry will fail. This convention is how Docker Hub knows which account's namespace the image belongs to.
 
 ### 2.21 Docker Registries — Deep Dive
 
 **Why not just keep images on your local machine?** The same reason you push source code to GitHub instead of only keeping local Git history: **risk** (your machine could fail and you'd lose everything) and **collaboration** (a team, or the whole internet, needs to be able to pull the image).
 
-**The registries surveyed on-screen:**
-
-| Registry | Provider | Where to find it | Notes from the walkthrough |
+**Major container registries:**
 |---|---|---|---|
 | **Docker Hub** | Docker Inc. | `hub.docker.com` | The **default** registry — if you don't specify a registry when pushing/pulling, Docker assumes Docker Hub. Easiest to use, has millions of **official images** (verified, published by the actual maintainers — e.g., the official TensorFlow, PyTorch, Python, MySQL, Postgres images). Free tier is sufficient for almost everyone; paid tiers exist for extra features. **Recommended starting point for beginners** and the best choice for publishing open-source images publicly. |
 | **Amazon ECR** (Elastic Container Registry) | AWS | AWS Console → search "ECR" | Preferred when your org is already AWS-native (EC2, EKS, etc.) — keeps everything inside the AWS ecosystem for simpler integration. |
@@ -681,9 +679,9 @@ docker tag myapp:1.0 <dockerhub-username>/myapp:1.0
 
 ### 2.24 VS Code Setup & Docker Extension
 
-The instructor recommends **Visual Studio Code** as the IDE for the course — it's free, works with all programming languages (Python, JavaScript/Node.js, Java/Spring Boot), and has excellent Docker support.
+**Visual Studio Code** is the recommended IDE — it's free, works with all programming languages (Python, JavaScript/Node.js, Java/Spring Boot), and has excellent Docker support.
 
-**Setup steps demonstrated:**
+**Setup steps:**
 1. Download VS Code from [code.visualstudio.com](https://code.visualstudio.com) (Windows/Mac/Linux)
 2. Open your project folder: **File → Open Folder** → navigate to the cloned repo
 3. Install the **Docker extension** (officially called **"Container Tools"** by Microsoft):
@@ -692,7 +690,7 @@ The instructor recommends **Visual Studio Code** as the IDE for the course — i
    - Install (48+ million downloads, very popular)
    - After installation: Dockerfile files get a whale icon, you get syntax highlighting, auto-suggestions for instructions (`FROM`, `COPY`, `RUN`, `CMD`, etc.), and you can right-click a Dockerfile to build the image directly
 
-> 💡 **IntelliJ users:** If you use IntelliJ IDEA for Java/Spring Boot, go to **Settings → Plugins → Marketplace**, search "Docker", and install the Docker plugin. It provides similar features. The instructor demonstrates both IDEs.
+> 💡 **IntelliJ users:** In IntelliJ IDEA, go to **Settings → Plugins → Marketplace**, search "Docker", and install the Docker plugin. It provides similar features.
 
 ### 2.25 Course GitHub Repository Structure
 
@@ -703,7 +701,7 @@ git clone <repository-url>
 cd devops-masterclass
 ```
 
-**Repository folder structure (as demonstrated):**
+**Repository folder structure:**
 ```
 devops-masterclass/
 ├── docker/
@@ -771,12 +769,12 @@ if __name__ == '__main__':
 flask
 ```
 
-**Key observations the instructor explains:**
+**Key points about the source code:**
 - `os.environ.get('MY_ENV', 'no env set')` — reads an environment variable; shows "no env set" if you don't pass one with `-e`
 - `socket.gethostname()` — returns the **container ID** when running inside Docker (proves which container handled the request)
 - The app runs on port 3000 inside the container
 
-**Step 2: Write the Dockerfile (line by line, as demonstrated)**
+**Step 2: Write the Dockerfile**
 
 ```dockerfile
 FROM python:3.10-slim
@@ -788,7 +786,7 @@ EXPOSE 3000
 CMD ["python", "main.py"]
 ```
 
-| Instruction | Why (explained in the video) |
+| Instruction | Why |
 |---|---|
 | `FROM python:3.10-slim` | Base image with Python 3.10 pre-installed; `slim` = smaller image size, sufficient for simple apps |
 | `WORKDIR /app` | Creates `/app` inside the container and sets it as the working directory |
@@ -804,7 +802,7 @@ cd docker/app-1-hello/python
 docker build -t <your-dockerhub-username>/hello-python .
 ```
 
-**Build output explained (instructor walks through each line):**
+**Build output (what each step means):**
 1. "Loaded build definition from Dockerfile" — Docker found and read the Dockerfile
 2. "Step 1/5: FROM python:3.10-slim" — pulling the base image
 3. "Step 2/5: WORKDIR /app" — setting working directory
@@ -919,15 +917,15 @@ docker push <your-dockerhub-username>/hello-node
 
 The build output follows the same step-by-step layer pattern as the Python build.
 
-### 2.28 Containerizing a Spring Boot App — Full Walkthrough (Exactly as Demonstrated)
+### 2.28 Containerizing a Spring Boot App — Full Walkthrough
 
-> The instructor uses **IntelliJ IDEA** for this walkthrough (since Java developers typically prefer IntelliJ), but explicitly states everything can be done identically in VS Code.
+> This walkthrough uses **IntelliJ IDEA** (since Java developers typically prefer IntelliJ), but everything can be done identically in VS Code.
 
 ---
 
 **Step 1: Open the project in IntelliJ**
 
-The project lives at `docker/app-1-hello/spring-boot/hello-spring/`. The instructor opens it in IntelliJ:
+The project lives at `docker/app-1-hello/spring-boot/hello-spring/`. To open in IntelliJ:
 
 1. IntelliJ → **Open** → navigate to the `hello-spring` folder → select `pom.xml`
 2. Choose **"Open as Project"** → click **"Trust Project"** (IntelliJ security prompt)
@@ -940,7 +938,7 @@ The project lives at `docker/app-1-hello/spring-boot/hello-spring/`. The instruc
 
 **Step 2: Install the Docker plugin (for IntelliJ)**
 
-Before creating the Dockerfile, the instructor checks for the Docker plugin:
+Before creating the Dockerfile, ensure the Docker plugin is installed:
 
 1. Go to **Settings → Plugins → Marketplace**
 2. Search for **"Docker"** → install the Docker plugin
@@ -950,11 +948,9 @@ Before creating the Dockerfile, the instructor checks for the Docker plugin:
 
 ---
 
-**Step 3: Create the Dockerfile (instruction by instruction, as typed live)**
+**Step 3: Create the Dockerfile (instruction by instruction)**
 
-The instructor right-clicks in IntelliJ → **New → Dockerfile** (this option appears because of the Docker plugin). If you don't see it, just create a **New → File** and name it `Dockerfile`.
-
-Now the instructor writes each instruction one at a time, explaining as he goes:
+In IntelliJ: right-click → **New → Dockerfile** (this option appears because of the Docker plugin). If you don't see it, just create a **New → File** and name it `Dockerfile`.
 
 ```dockerfile
 FROM eclipse-temurin:21-jdk
@@ -964,51 +960,51 @@ EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
 ```
 
-**Instruction-by-instruction explanation (as taught):**
+**Instruction-by-instruction explanation:**
 
-| # | Instruction | What the instructor explains |
+| # | Instruction | Explanation |
 |---|---|---|
-| 1 | `FROM eclipse-temurin:21-jdk` | "I'm going to pull the base image. Eclipse Temurin — you can see the auto-suggestions. If you want to know what Eclipse Temurin is, go to Docker Hub and search for it. It's the official OpenJDK binaries. You want a base image that has JDK. There are tons of tags — `21-jdk`, `21-jdk-alpine`, etc. I'm using `21-jdk`." |
-| 2 | `WORKDIR /app` | "Setting the working directory as `/app` within the container. This directory will be created if it doesn't exist, and everything we do afterwards will happen in this directory." |
-| 3 | `COPY target/*.jar app.jar` | "I'm copying the JAR file from the `target/` folder. `target/*.jar` is the source — whichever JAR file exists in the target folder. `app.jar` is the destination — this is what the file will be called inside the container." |
-| 4 | `EXPOSE 8080` | "Exposing port 8080 because that's what Spring Boot uses by default." |
-| 5 | `CMD ["java", "-jar", "app.jar"]` | "The command to start the application inside the container. In array form: `java`, then `-jar` flag, then `app.jar` — the name of the JAR file we copied." |
+| 1 | `FROM eclipse-temurin:21-jdk` | Pulls the base image. Eclipse Temurin is the official OpenJDK distribution — search "Eclipse Temurin" on Docker Hub to see all available tags (`21-jdk`, `21-jdk-alpine`, etc.). We need a base image that has JDK installed. |
+| 2 | `WORKDIR /app` | Sets the working directory as `/app` within the container. This directory will be created if it doesn't exist, and all subsequent operations happen inside it. |
+| 3 | `COPY target/*.jar app.jar` | Copies the JAR file from the local `target/` folder. `target/*.jar` is the source (whichever JAR file exists in the target folder). `app.jar` is the destination name inside the container. |
+| 4 | `EXPOSE 8080` | Exposes port 8080 because Spring Boot uses this port by default. |
+| 5 | `CMD ["java", "-jar", "app.jar"]` | The startup command for the container. In array form: `java`, then `-jar` flag, then `app.jar` — the name of the JAR file we copied. |
 
-**The instructor summarizes:** "Simply — we are getting the base image, setting the working directory, copying the JAR file, exposing the port, and running the command to start the JAR file within the container."
+**Summary:** Get the base image → set working directory → copy the JAR file → expose the port → run the command to start the JAR file.
 
 ---
 
 **Step 4: The `target/` folder problem — building the JAR file**
 
-> ⚠️ **Key moment from the video:** After writing the Dockerfile, the instructor points out: "One thing I'll mention — we **don't have this `target/` folder yet**. If you see over here, we don't have a target folder, right? We don't. So if you create an image with this, it's **going to fail**."
+> ⚠️ **Critical gotcha:** After writing the Dockerfile, the `target/` folder **doesn't exist yet**. If you try to `docker build` immediately, it **will fail** because there's no JAR file to copy.
 
 **What is the `target/` folder?** In Spring Boot / Java projects, the `target/` folder is the **build output directory**. It's where compiled `.jar` files are created when you build the project. It doesn't exist until you run the Maven build.
 
 **How to create the JAR file (two methods demonstrated):**
 
-**Method 1 — Via command line (recommended by instructor):**
+**Method 1 — Via command line (recommended):**
 
 ```bash
 # Navigate to the project directory
 cd docker/app-1-hello/spring-boot/hello-spring
 ```
 
-The instructor uses the **Maven Wrapper** (`mvnw`) — a script that comes bundled with Spring Boot projects, so you don't need Maven installed globally.
+The **Maven Wrapper** (`mvnw`) is a script bundled with Spring Boot projects, so you don't need Maven installed globally.
 
 **On Mac/Linux:**
 ```bash
 ./mvnw clean package -DskipTests
 ```
 
-**On Windows (the instructor encounters an error live and fixes it):**
+**On Windows (common error and fix):**
 ```powershell
-# First attempt (fails):
+# First attempt (may fail):
 mvnw.cmd clean package -DskipTests
-# ERROR! The instructor gets an error.
+# ERROR — command not found
 
 # Fix — use dot-backslash:
 .\mvnw.cmd clean package -DskipTests
-# SUCCESS! The project builds.
+# SUCCESS!
 ```
 
 > 💡 **What the command does:** `clean` removes any previous build output. `package` compiles the code and packages it into a JAR file. `-DskipTests` skips running tests (faster build, useful when you just need the JAR for Docker).
@@ -1021,9 +1017,7 @@ mvnw.cmd clean package -DskipTests
 
 **Step 5: Walk through the source code**
 
-The instructor then walks through the project structure:
-
-**`pom.xml`** — a very simple Maven project:
+**`pom.xml`** — a simple Maven project:
 ```xml
 <properties>
     <java.version>21</java.version>
@@ -1035,7 +1029,7 @@ The instructor then walks through the project structure:
     </dependency>
 </dependencies>
 ```
-"It's making use of Java 21. Very simple web project."
+Uses Java 21 with Spring Boot Web starter.
 
 **`HelloController.java`** — the only controller:
 ```java
@@ -1055,19 +1049,19 @@ public class HelloController {
     }
 }
 ```
-"Very simple controller — it's returning message, environment variable (from env), and the container hostname. It's annotated with `@RestController` and `@GetMapping`. That's it."
+A simple REST controller that returns the message, environment variable value, and the container hostname. Annotated with `@RestController` and `@GetMapping`.
 
 ---
 
 **Step 6: Build the Docker image**
 
-The instructor switches to **PowerShell** and navigates to the project directory:
+Switch to the terminal and navigate to the project directory:
 
 ```bash
 cd docker/app-1-hello/spring-boot/hello-spring
 ```
 
-Before building, you need a **Docker Hub account**. The instructor shows his account (`decode007`) and explains: "When we create the image, we need to tag the image with the username so that later on we can push it to our Docker Hub account."
+Before building, you need a **Docker Hub account**. The image must be tagged with your Docker Hub username so it can be pushed later.
 
 **Build command explained piece by piece:**
 ```bash
@@ -1081,7 +1075,7 @@ docker build -t <username>/<image-name>:<tag> .
 | `<username>/` | Your Docker Hub username (e.g., `decode007/`) — **mandatory** if you want to push later |
 | `<image-name>` | Name of your image (e.g., `hello-spring`) |
 | `:<tag>` | Version tag (e.g., `:v1`). If omitted, defaults to `:latest` |
-| `.` | The **build context** — the current directory. "This tells docker build which directory has the source code, the Dockerfile, and everything needed for Docker to build the image." |
+| `.` | The **build context** — the current directory. This tells docker build which directory has the source code, the Dockerfile, and everything needed to build the image. |
 
 **Actual command run:**
 ```bash
@@ -1089,20 +1083,20 @@ docker build -t decode007/hello-spring .
 ```
 (No tag specified, so it defaults to `latest`.)
 
-**Build output explained (instructor walks through each line):**
+**Build output (what each step means):**
 
 The build took ~6.2 seconds and shows:
 1. **Loaded the Dockerfile** — Docker found and read the instructions
 2. **Pulled `eclipse-temurin:21-jdk`** — downloaded the base image from Docker Hub
-3. **Loaded `.dockerignore`** — instructor explains: ".dockerignore is a file like .gitignore. It allows you to ignore certain files that you don't want Docker to consider. Sensitive files, unnecessary files — you can use .dockerignore to reduce image size."
+3. **Loaded `.dockerignore`** — `.dockerignore` is a file like `.gitignore`. It tells Docker to ignore certain files you don't want included in the build (sensitive files, unnecessary files). This helps reduce image size.
 4. **Step 1/3: FROM eclipse-temurin** — pulling the base image layer
 5. **Step 2/3: WORKDIR /app** — setting working directory
 6. **Step 3/3: COPY target/*.jar app.jar** — copying the JAR file into the image
 7. **Exporting layers** — packaging everything and saving the image locally
 
-> 💡 **"EXPOSE and CMD are not separate build steps"** — the instructor points out that EXPOSE and CMD only take effect when the container is *started*, not during the build. So they don't appear as separate steps.
+> 💡 **EXPOSE and CMD are not separate build steps** — they only take effect when the container is *started*, not during the build. So they don't appear as separate steps in the build output.
 
-> 💡 **"One instruction = one layer"** — each Dockerfile instruction creates a cached layer. If you later modify the CMD instruction, only that layer and everything after it will be rebuilt. All previous layers are cached.
+> 💡 **One instruction = one layer** — each Dockerfile instruction creates a cached layer. If you later modify the CMD instruction, only that layer and everything after it will be rebuilt. All previous layers are cached.
 
 **Verify the image:**
 ```bash
@@ -1118,7 +1112,7 @@ You'll see the `decode007/hello-spring` image with its size and creation time. Y
 docker run -d --name hello-spring -p 8080:8080 decode007/hello-spring
 ```
 
-> ⚠️ **Live error in the video:** The instructor first accidentally types `hello-world` instead of `hello-spring` and gets an "unable to find image" error. He corrects it to `hello-spring` and the container starts successfully. This is a real mistake that actually happens — always double-check your image name!
+> ⚠️ **Common mistake:** Typing the wrong image name (e.g., `hello-world` instead of `hello-spring`) gives an "unable to find image" error. Always double-check your image name!
 
 | Flag | Meaning |
 |---|---|
@@ -1148,7 +1142,7 @@ docker logs hello-spring
 ```bash
 docker login
 ```
-If you're not already authenticated, this opens a browser window where you enter your Docker Hub username and password. Once authenticated, you're redirected back to the terminal. "Remember — it's your account. You need to give access to the terminal. You can do it with `docker login`."
+If you're not already authenticated, this opens a browser window where you enter your Docker Hub username and password. Once authenticated, you're redirected back to the terminal. You need to give your terminal access to your Docker Hub account before pushing.
 
 **Then push:**
 ```bash
@@ -1172,7 +1166,7 @@ The push happens **layer by layer** — you can see each layer being uploaded. A
 
 **Step 9: FAQ — "Do I need the username in the image name?"**
 
-> The instructor addresses a common beginner question: "Do you need to mention the image name as `username/image-name`? Why can't I just use `image-name`?"
+> **Common beginner question:** "Do you need to mention the image name as `username/image-name`? Why can't I just use `image-name`?"
 >
 > **Answer:** This is a **mandatory convention**. You **must** have your Docker Hub username appended before the image name in the format `username/image-name` if you want to push to Docker Hub. If you don't include the username, the push **will fail**.
 
@@ -1195,7 +1189,7 @@ __pycache__
 - **Speeds up builds** — Docker sends the build context to the daemon; fewer files = faster transfer
 - **Security** — prevents sensitive files (`.env`, credentials) from accidentally ending up in the image
 
-The instructor mentions `.dockerignore` multiple times during the build demos — Docker loads it automatically if it exists in the build context directory.
+Docker loads `.dockerignore` automatically if it exists in the build context directory.
 
 ### 2.30 `docker run -it` — Interactive Terminal Mode
 
@@ -1264,7 +1258,7 @@ flowchart LR
 | `MY_ENV` | Both | A custom label to identify the environment (optional) |
 | `PORT` | Both | Override the default port (optional, defaults to 3000/4000) |
 
-**The project exists in 3 language variants** (Node.js, Python, Spring Boot) — the instructor containerizes each and deploys all to Kubernetes. The architecture is identical regardless of language.
+**The project exists in 3 language variants** (Node.js, Python, Spring Boot) — each is containerized and deployed to Kubernetes. The architecture is identical regardless of language.
 
 ---
 
@@ -1274,7 +1268,7 @@ flowchart LR
 
 **The setup:** picture a production system with a front-end service, a Node.js service, a Spring Boot service, and a Python service, all running as Docker containers.
 
-**The uncomfortable questions the instructor poses:**
+**Key questions to consider:**
 - What happens if a container **crashes at 2 a.m.**? Who restarts it?
 - What if **traffic suddenly jumps 10x**? How do you get 5 more instances of a service, fast?
 - What if **one container needs to run on a different physical machine (VM)** than another? Docker itself only manages a **single host** at a time.
@@ -1299,7 +1293,7 @@ A **kitchen manager** is needed — someone who coordinates the workers automati
 | Orders / dishes | Requests / traffic |
 | Kitchen manager | **Kubernetes (the orchestrator)** |
 
-**The full list of problems container orchestration must solve (as enumerated in the video):**
+**The full list of problems container orchestration must solve:**
 
 | Problem | Explanation |
 |---|---|
@@ -1373,7 +1367,7 @@ Kubernetes Cluster
 
 ### 4.4 Setting Up Kubernetes Locally
 
-Two popular local options are discussed (with Docker Desktop's built-in option used for the hands-on demos):
+Two popular local options (Docker Desktop's built-in option is used for the hands-on demos):
 
 | Tool | Notes |
 |---|---|
@@ -1381,13 +1375,13 @@ Two popular local options are discussed (with Docker Desktop's built-in option u
 | **Minikube** | A very popular standalone tool for running a local (single- or multi-node) Kubernetes cluster; has its own official getting-started guide with resource requirements (roughly 2 CPUs, 2 GB free memory, 20 GB disk). |
 | **`kubeadm`** | A lower-level tool also used to create/manage clusters (this is one of the two engine options Docker Desktop lets you pick from). |
 
-> ⚠️ **Real gotcha demonstrated live and worth remembering:** `kubectl` **does not itself run a cluster** — it is *only* a client tool that talks to whichever cluster your current **context** points to. On the instructor's own machine, `kubectl get nodes` returned nothing/garbled output — not because Kubernetes had failed to install, but because his `kubectl` **context was still pointed at Minikube** (from earlier, unrelated experimentation) instead of the newly-enabled Docker Desktop cluster. Fix:
+> ⚠️ **Important gotcha:** `kubectl` **does not itself run a cluster** — it is *only* a client tool that talks to whichever cluster your current **context** points to. If `kubectl get nodes` returns nothing or garbled output, it may be because your `kubectl` **context is pointed at the wrong cluster** (e.g., Minikube instead of Docker Desktop). Fix:
 > ```bash
 > kubectl config get-contexts        # see which context is currently active / available
 > kubectl config use-context docker-desktop   # switch to the Docker Desktop cluster
 > kubectl get nodes                  # now correctly shows the node
 > ```
-> **Lesson:** if `kubectl` commands return empty/odd results after installing Kubernetes, check your **context** before assuming the cluster itself is broken.
+> **Lesson:** if `kubectl` commands return empty/odd results after installing Kubernetes, check your **context** before assuming the cluster is broken.
 
 ### 4.5 Core Concepts: Pods, Deployments, ReplicaSets
 
@@ -1410,7 +1404,7 @@ flowchart TB
     Dev([kubectl / Developer]) --> API
 ```
 
-| Term | Definition, exactly as taught |
+| Term | Definition |
 |---|---|
 | **Pod** | "The actual running app" — a container wrapped in a Kubernetes layer. It's "like a house where your app lives and runs." **The smallest deployable unit in Kubernetes.** |
 | **Deployment** | A component that runs your app **continuously**. If a pod crashes, Kubernetes restarts it automatically via the Deployment. It's also what lets you request more copies (replicas) of your app. |
@@ -1436,7 +1430,7 @@ Confirming:
 ```bash
 kubectl get svc            # or: kubectl get svc web
 ```
-Example output interpretation walked through live:
+Output interpretation:
 - `CLUSTER-IP` → the service's internal-only IP (safe to ignore for local access purposes)
 - `PORT(S)` column shows something like `80:30241/TCP` → **80** is the app's internal container port, **30241** is the randomly-assigned external port opened on your machine (drawn from the 30000–32767 NodePort range)
 
@@ -1501,7 +1495,7 @@ flowchart LR
 | **LoadBalancer** | Provisions an actual **cloud load balancer**, giving a public IP or DNS name | ✅ Yes, via public internet | **Real production traffic with real users** — this is the type that "works best on cloud services like AWS, GCP, Azure" since it needs a cloud provider to actually create the load balancer |
 | **ExternalName** | Maps the Service to an external DNS name | N/A (outbound mapping) | Connecting to an **external database or third-party API** from inside the cluster; described as advanced and rarely used |
 
-**Summary, exactly as the instructor frames the decision table:**
+**Decision table:**
 - Need internal-only microservice-to-microservice communication? → **ClusterIP**
 - Just testing/learning locally, want quick browser access? → **NodePort**
 - Shipping to real users in production? → **LoadBalancer**
@@ -1534,7 +1528,7 @@ Two Kubernetes objects for injecting configuration into Pods, differing by **sen
 | Type shown in demo | — | `Opaque` (a **generic secret type**) |
 | Data encoding | Plain values | Should be **base64-encoded** in the manifest |
 
-**Example files (`configmap.yaml` and `secret.yaml`, as walked through):**
+**Example files (`configmap.yaml` and `secret.yaml`):**
 ```yaml
 # configmap.yaml
 apiVersion: v1
@@ -1565,9 +1559,9 @@ env:
         key: db-password
 ```
 
-Verification (as demonstrated with `kubectl exec` above): exec into the running pod and `printenv | grep DB_PASSWORD` to confirm the value was correctly injected from the Secret.
+**Verification:** exec into the running pod and `printenv | grep DB_PASSWORD` to confirm the value was correctly injected from the Secret.
 
-### 4.9 `kubectl` Command Cheat Sheet (everything demonstrated + standard equivalents)
+### 4.9 `kubectl` Command Cheat Sheet
 
 ```bash
 # Context management (important gotcha!)
@@ -1676,7 +1670,7 @@ The `describe` output includes: image name/version, pod IP, node it's running on
 
 ### 4.12 Writing Kubernetes YAML Manifests — From Command Line to Files
 
-**Getting YAML from existing resources (as demonstrated):**
+**Getting YAML from existing resources:**
 ```bash
 # Export a running deployment's config as YAML
 kubectl get deployments web -o yaml
@@ -1891,7 +1885,7 @@ kubectl get pods
 
 ## Part 5 — CI/CD Concepts
 
-### 5.1 The Manual Workflow Problem (Explicitly Diagrammed in the Course)
+### 5.1 The Manual Workflow Problem
 
 **Before CI/CD, the entire software delivery process was manual:**
 
@@ -1905,7 +1899,7 @@ flowchart LR
     F --> G[Manually verify the app is live]
 ```
 
-**Step-by-step (as walked through in the video):**
+**Step-by-step breakdown:**
 1. Developer writes code and pushes a new feature/bug fix
 2. Developer **manually runs tests** on their local machine
 3. Developer **manually builds the application** (e.g., `mvn clean package` for Java, `npm run build` for Node.js)
@@ -1924,7 +1918,7 @@ Every single arrow above represents a **manual, human-dependent** step — descr
 
 ### 5.2 Definitions
 
-| Term | Meaning, exactly as taught |
+| Term | Meaning |
 |---|---|
 | **CI — Continuous Integration** | Frequently merging code changes, with automatic building and testing. **CI ends the moment you have a packaged output** — a "software artifact." |
 | **CD — Continuous Delivery/Deployment** | Automatically taking that artifact and deploying/releasing it. |
@@ -1968,9 +1962,9 @@ The course builds a real, working workflow for a **Spring Boot (Java/Maven)** mi
 - Jobs can be chained with `needs:` — e.g., the Docker build/push job only starts **after** the build-and-test job succeeds; the deploy job only starts after the Docker build/push job succeeds.
 - **Reusable Actions** (e.g., `actions/checkout@v4`) are pre-built steps from the GitHub Actions marketplace, used instead of writing raw shell commands for common tasks like checking out code.
 - **Secrets** (Docker Hub credentials, AWS credentials) live in the repository's GitHub Secrets settings and are referenced via `${{ secrets.NAME }}` — never hard-coded into the YAML.
-- **Debugging is iterative and normal** — the instructor's own live run failed at one point ("docker build push is failed") and was fixed and re-triggered on camera. Reading the GitHub Actions run logs is the standard way to diagnose failures.
+- **Debugging is iterative and normal** — a live run may fail (e.g., "docker build push is failed") and need to be fixed and re-triggered. Reading the GitHub Actions run logs is the standard way to diagnose failures.
 
-### 7.2 Building the Workflow, Step by Step (as demonstrated)
+### 7.2 Building the Workflow, Step by Step
 
 **Job 1 — Build & Test:**
 1. `Check out code` → uses `actions/checkout@v4` (need the source before anything else can happen).
@@ -2127,7 +2121,7 @@ flowchart TD
 ```
 
 ### 8.3 Notes From the Live Deployment Demos
-- The same `deploy-aws-eks` job pattern was repeated for **three separate microservices** in the transcript ("hello Spring Boot app," "hello node app," and a Python app), each successfully reaching "deploying to AWS EKS" as the final pipeline stage — reinforcing that this is a **repeatable template**, not a one-off script.
+- The same `deploy-aws-eks` job pattern is repeated for **three separate microservices** (Spring Boot, Node.js, and Python), each successfully reaching "deploying to AWS EKS" as the final pipeline stage — reinforcing that this is a **repeatable template**, not a one-off script.
 - Job dependencies matter: a deploy job showed as **"not triggered"** at one point in the demo precisely because its upstream `needs:` job hadn't completed successfully yet — a good real-world reminder to check the dependency chain first when a job appears stuck or skipped.
 - Cluster teardown was also demonstrated conceptually with `eksctl delete`, explicitly deleting the **control plane and node groups** together, to avoid leaving AWS resources running (and being billed for) after you're done experimenting.
 
@@ -2340,8 +2334,8 @@ eksctl delete cluster --name <cluster> --region <region>
 | **Maven Wrapper (`mvnw`)** | A script included with Spring Boot projects that runs Maven without requiring a global Maven installation; `./mvnw` (Mac/Linux), `.\mvnw.cmd` (Windows) |
 | **Labels** | Key-value tags attached to Kubernetes pods (e.g., `app: web`) used to identify and group them |
 | **Selectors** | Kubernetes mechanism for Services to find pods — matches labels (e.g., `selector: app: web` routes traffic to all pods with that label) |
-| **Flask** | A lightweight Python web framework used in the course's Python microservice demos |
-| **Express.js** | A Node.js web framework used in the course's Node.js microservice demos |
+| **Flask** | A lightweight Python web framework used in the Python microservice demos |
+| **Express.js** | A Node.js web framework used in the Node.js microservice demos |
 | **Inter-service Communication** | How microservices talk to each other within a Kubernetes cluster — using service names (e.g., `http://service-b:4000`) resolved by K8s built-in DNS |
 | **Build Context** | The directory Docker uses when building an image — specified by the `.` at the end of `docker build -t name .` |
 | **Layer Caching** | Docker's optimization where unchanged Dockerfile instructions reuse cached layers from previous builds — order of instructions matters for cache efficiency |
@@ -2351,7 +2345,7 @@ eksctl delete cluster --name <cluster> --region <region>
 
 ## Part 12 — How to Use These Notes for Revision
 
-1. **Docker Basics (Part 2, Sections 2.1–2.23):** Re-run every command in Sections 2.6–2.23 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure, exactly as the course does). Practice the full container lifecycle (Section 2.11): `docker create` → `docker start` → `docker stop` → `docker restart` → `docker rm`.
+1. **Docker Basics (Part 2, Sections 2.1–2.23):** Re-run every command in Sections 2.6–2.23 against a throwaway app of your own. Don't skip the `nginx` port-mapping demo — it's the concept most people think they understand but actually don't until they've broken it once (try running `nginx` *without* `-p` first and observe the failure). Practice the full container lifecycle (Section 2.11): `docker create` → `docker start` → `docker stop` → `docker restart` → `docker rm`.
 2. **Containerize Real Apps (Sections 2.26–2.28):** Reproduce the full Python, Node.js, and Spring Boot containerization walkthroughs. Write each Dockerfile from scratch, build each image, run each container, and verify the JSON API response in your browser. This is the #1 skill for DevOps.
 3. **Kubernetes (Part 4):** Reproduce the full Section 4.6 walkthrough end-to-end locally: deploy → expose via NodePort → access in browser → delete a pod and watch it self-heal → scale to 5 replicas and watch it happen live with `-w`. This single sequence covers 80% of the "why Kubernetes" intuition.
 4. **Microservices on K8s (Section 4.13):** Deploy the Tax Calculator (Service A + Service B) using the YAML manifests provided. Verify inter-service communication works (Service A calls Service B via ClusterIP). Try accessing Service B directly from your browser — it should fail (proving ClusterIP works). Scale Service A to 2 replicas and back.
