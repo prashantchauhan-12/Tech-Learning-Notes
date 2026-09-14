@@ -919,11 +919,111 @@ docker push <your-dockerhub-username>/hello-node
 
 The build output follows the same step-by-step layer pattern as the Python build.
 
-### 2.28 Containerizing a Spring Boot App — Full Walkthrough
+### 2.28 Containerizing a Spring Boot App — Full Walkthrough (Exactly as Demonstrated)
 
-**Step 1: Understand the source code**
+> The instructor uses **IntelliJ IDEA** for this walkthrough (since Java developers typically prefer IntelliJ), but explicitly states everything can be done identically in VS Code.
 
-`pom.xml` — Maven project using Java 21, Spring Boot Web:
+---
+
+**Step 1: Open the project in IntelliJ**
+
+The project lives at `docker/app-1-hello/spring-boot/hello-spring/`. The instructor opens it in IntelliJ:
+
+1. IntelliJ → **Open** → navigate to the `hello-spring` folder → select `pom.xml`
+2. Choose **"Open as Project"** → click **"Trust Project"** (IntelliJ security prompt)
+3. IntelliJ detects it's a Maven project and shows "Build scripts found. Load Maven project?" → click **Yes**
+4. The project is now recognized as a Maven project — you'll see the Maven panel on the right side
+
+> 💡 In **VS Code**: File → Open Folder → select the same `hello-spring` directory. It works identically.
+
+---
+
+**Step 2: Install the Docker plugin (for IntelliJ)**
+
+Before creating the Dockerfile, the instructor checks for the Docker plugin:
+
+1. Go to **Settings → Plugins → Marketplace**
+2. Search for **"Docker"** → install the Docker plugin
+3. This gives you: Dockerfile syntax highlighting, auto-suggest for instructions, a Docker icon on Dockerfile files, and the ability to create a Dockerfile directly from the right-click menu
+
+> In **VS Code**: install the **"Container Tools"** extension (covered in Section 2.24). It provides the same features — the whale icon, auto-suggest, etc.
+
+---
+
+**Step 3: Create the Dockerfile (instruction by instruction, as typed live)**
+
+The instructor right-clicks in IntelliJ → **New → Dockerfile** (this option appears because of the Docker plugin). If you don't see it, just create a **New → File** and name it `Dockerfile`.
+
+Now the instructor writes each instruction one at a time, explaining as he goes:
+
+```dockerfile
+FROM eclipse-temurin:21-jdk
+WORKDIR /app
+COPY target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
+```
+
+**Instruction-by-instruction explanation (as taught):**
+
+| # | Instruction | What the instructor explains |
+|---|---|---|
+| 1 | `FROM eclipse-temurin:21-jdk` | "I'm going to pull the base image. Eclipse Temurin — you can see the auto-suggestions. If you want to know what Eclipse Temurin is, go to Docker Hub and search for it. It's the official OpenJDK binaries. You want a base image that has JDK. There are tons of tags — `21-jdk`, `21-jdk-alpine`, etc. I'm using `21-jdk`." |
+| 2 | `WORKDIR /app` | "Setting the working directory as `/app` within the container. This directory will be created if it doesn't exist, and everything we do afterwards will happen in this directory." |
+| 3 | `COPY target/*.jar app.jar` | "I'm copying the JAR file from the `target/` folder. `target/*.jar` is the source — whichever JAR file exists in the target folder. `app.jar` is the destination — this is what the file will be called inside the container." |
+| 4 | `EXPOSE 8080` | "Exposing port 8080 because that's what Spring Boot uses by default." |
+| 5 | `CMD ["java", "-jar", "app.jar"]` | "The command to start the application inside the container. In array form: `java`, then `-jar` flag, then `app.jar` — the name of the JAR file we copied." |
+
+**The instructor summarizes:** "Simply — we are getting the base image, setting the working directory, copying the JAR file, exposing the port, and running the command to start the JAR file within the container."
+
+---
+
+**Step 4: The `target/` folder problem — building the JAR file**
+
+> ⚠️ **Key moment from the video:** After writing the Dockerfile, the instructor points out: "One thing I'll mention — we **don't have this `target/` folder yet**. If you see over here, we don't have a target folder, right? We don't. So if you create an image with this, it's **going to fail**."
+
+**What is the `target/` folder?** In Spring Boot / Java projects, the `target/` folder is the **build output directory**. It's where compiled `.jar` files are created when you build the project. It doesn't exist until you run the Maven build.
+
+**How to create the JAR file (two methods demonstrated):**
+
+**Method 1 — Via command line (recommended by instructor):**
+
+```bash
+# Navigate to the project directory
+cd docker/app-1-hello/spring-boot/hello-spring
+```
+
+The instructor uses the **Maven Wrapper** (`mvnw`) — a script that comes bundled with Spring Boot projects, so you don't need Maven installed globally.
+
+**On Mac/Linux:**
+```bash
+./mvnw clean package -DskipTests
+```
+
+**On Windows (the instructor encounters an error live and fixes it):**
+```powershell
+# First attempt (fails):
+mvnw.cmd clean package -DskipTests
+# ERROR! The instructor gets an error.
+
+# Fix — use dot-backslash:
+.\mvnw.cmd clean package -DskipTests
+# SUCCESS! The project builds.
+```
+
+> 💡 **What the command does:** `clean` removes any previous build output. `package` compiles the code and packages it into a JAR file. `-DskipTests` skips running tests (faster build, useful when you just need the JAR for Docker).
+
+**Method 2 — Via IntelliJ:** You can also go to the main application file and click **Run**, or use **Build → Rebuild Project**. This also produces the `target/` folder.
+
+**After building:** The `target/` folder appears, and inside it you'll find the JAR file (e.g., `hello-spring-0.0.1-SNAPSHOT.jar`). This is the file that gets copied into the Docker image.
+
+---
+
+**Step 5: Walk through the source code**
+
+The instructor then walks through the project structure:
+
+**`pom.xml`** — a very simple Maven project:
 ```xml
 <properties>
     <java.version>21</java.version>
@@ -935,8 +1035,9 @@ The build output follows the same step-by-step layer pattern as the Python build
     </dependency>
 </dependencies>
 ```
+"It's making use of Java 21. Very simple web project."
 
-`HelloController.java` — a simple REST controller:
+**`HelloController.java`** — the only controller:
 ```java
 @RestController
 public class HelloController {
@@ -954,60 +1055,126 @@ public class HelloController {
     }
 }
 ```
+"Very simple controller — it's returning message, environment variable (from env), and the container hostname. It's annotated with `@RestController` and `@GetMapping`. That's it."
 
-**Step 2: Build the JAR file (required before Docker build)**
+---
 
-The Spring Boot Dockerfile needs a compiled `.jar` file in a `target/` folder. You must build the project first:
+**Step 6: Build the Docker image**
+
+The instructor switches to **PowerShell** and navigates to the project directory:
 
 ```bash
 cd docker/app-1-hello/spring-boot/hello-spring
-
-# Mac/Linux:
-./mvnw clean package -DskipTests
-
-# Windows:
-.\mvnw.cmd clean package -DskipTests
 ```
 
-This creates `target/hello-spring-0.0.1-SNAPSHOT.jar`.
+Before building, you need a **Docker Hub account**. The instructor shows his account (`decode007`) and explains: "When we create the image, we need to tag the image with the username so that later on we can push it to our Docker Hub account."
 
-> ⚠️ If you skip this step and try `docker build` immediately, it will **fail** because the `target/` folder doesn't exist yet.
-
-**Step 3: Write the Dockerfile**
-```dockerfile
-FROM eclipse-temurin:21-jdk
-WORKDIR /app
-COPY target/*.jar app.jar
-EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
-```
-
-| Instruction | Why |
-|---|---|
-| `FROM eclipse-temurin:21-jdk` | Base image with Java 21 JDK (Eclipse Temurin is the standard OpenJDK distribution); search "Eclipse Temurin" on Docker Hub |
-| `COPY target/*.jar app.jar` | Copies the built JAR from your local `target/` folder into the container as `app.jar` |
-| `EXPOSE 8080` | Spring Boot defaults to port 8080 |
-| `CMD ["java", "-jar", "app.jar"]` | Runs the JAR when container starts |
-
-**Step 4: Build, run, and push**
+**Build command explained piece by piece:**
 ```bash
-# Build (from the hello-spring directory where Dockerfile is)
-docker build -t <your-dockerhub-username>/hello-spring .
-
-# Run (note: Spring Boot uses port 8080, not 3000)
-docker run -d --name hello-spring -p 8080:8080 <your-dockerhub-username>/hello-spring
-
-# Visit http://localhost:8080
-
-# Check logs
-docker logs hello-spring
-
-# Push
-docker login
-docker push <your-dockerhub-username>/hello-spring
+docker build -t <username>/<image-name>:<tag> .
 ```
 
-**IntelliJ vs VS Code for this workflow:** Both IDEs are shown in the video. IntelliJ has a dedicated Docker plugin (Settings → Plugins → search "Docker"). VS Code uses the Container Tools extension. Both provide Dockerfile syntax highlighting and auto-suggestions.
+| Part | Meaning |
+|---|---|
+| `docker build` | Command to build a Docker image |
+| `-t` | Tag flag — name the image |
+| `<username>/` | Your Docker Hub username (e.g., `decode007/`) — **mandatory** if you want to push later |
+| `<image-name>` | Name of your image (e.g., `hello-spring`) |
+| `:<tag>` | Version tag (e.g., `:v1`). If omitted, defaults to `:latest` |
+| `.` | The **build context** — the current directory. "This tells docker build which directory has the source code, the Dockerfile, and everything needed for Docker to build the image." |
+
+**Actual command run:**
+```bash
+docker build -t decode007/hello-spring .
+```
+(No tag specified, so it defaults to `latest`.)
+
+**Build output explained (instructor walks through each line):**
+
+The build took ~6.2 seconds and shows:
+1. **Loaded the Dockerfile** — Docker found and read the instructions
+2. **Pulled `eclipse-temurin:21-jdk`** — downloaded the base image from Docker Hub
+3. **Loaded `.dockerignore`** — instructor explains: ".dockerignore is a file like .gitignore. It allows you to ignore certain files that you don't want Docker to consider. Sensitive files, unnecessary files — you can use .dockerignore to reduce image size."
+4. **Step 1/3: FROM eclipse-temurin** — pulling the base image layer
+5. **Step 2/3: WORKDIR /app** — setting working directory
+6. **Step 3/3: COPY target/*.jar app.jar** — copying the JAR file into the image
+7. **Exporting layers** — packaging everything and saving the image locally
+
+> 💡 **"EXPOSE and CMD are not separate build steps"** — the instructor points out that EXPOSE and CMD only take effect when the container is *started*, not during the build. So they don't appear as separate steps.
+
+> 💡 **"One instruction = one layer"** — each Dockerfile instruction creates a cached layer. If you later modify the CMD instruction, only that layer and everything after it will be rebuilt. All previous layers are cached.
+
+**Verify the image:**
+```bash
+docker images
+```
+You'll see the `decode007/hello-spring` image with its size and creation time. You can also see it in **Docker Desktop → Images** tab, where clicking on it shows all 20+ layers.
+
+---
+
+**Step 7: Run the container**
+
+```bash
+docker run -d --name hello-spring -p 8080:8080 decode007/hello-spring
+```
+
+> ⚠️ **Live error in the video:** The instructor first accidentally types `hello-world` instead of `hello-spring` and gets an "unable to find image" error. He corrects it to `hello-spring` and the container starts successfully. This is a real mistake that actually happens — always double-check your image name!
+
+| Flag | Meaning |
+|---|---|
+| `-d` | Detached mode (run in background) |
+| `--name hello-spring` | Name the container `hello-spring` |
+| `-p 8080:8080` | Map port 8080 on your machine to port 8080 in the container |
+| `decode007/hello-spring` | The image to create the container from |
+
+**Access in browser:** Open `http://localhost:8080` — you'll see:
+```json
+{"message": "Hello from Spring Boot!", "env": "no env set", "container": "2ae5..."}
+```
+
+The container ID shown (e.g., `2ae5`) matches what you see in `docker ps`.
+
+**Check the logs:**
+```bash
+docker logs hello-spring
+# Shows the full Spring Boot startup log
+```
+
+---
+
+**Step 8: Push to Docker Hub**
+
+**First, you must login:**
+```bash
+docker login
+```
+If you're not already authenticated, this opens a browser window where you enter your Docker Hub username and password. Once authenticated, you're redirected back to the terminal. "Remember — it's your account. You need to give access to the terminal. You can do it with `docker login`."
+
+**Then push:**
+```bash
+docker push decode007/hello-spring
+```
+
+The push happens **layer by layer** — you can see each layer being uploaded. After completion:
+
+1. Go to **Docker Hub** in your browser → refresh → you'll see `hello-spring` appear in your repositories
+2. Click on it → you'll see the **`latest`** tag (because we didn't specify a tag, it defaults to `latest`)
+3. Click on `latest` → you can see all the image layers — the same ones visible in Docker Desktop
+4. The repository visibility shows as **Public** — anyone in the world can pull and use this image
+
+> 💡 **To push with a specific version tag:** Add it during `docker build`:
+> ```bash
+> docker build -t decode007/hello-spring:v1 .
+> docker push decode007/hello-spring:v1
+> ```
+
+---
+
+**Step 9: FAQ — "Do I need the username in the image name?"**
+
+> The instructor addresses a common beginner question: "Do you need to mention the image name as `username/image-name`? Why can't I just use `image-name`?"
+>
+> **Answer:** This is a **mandatory convention**. You **must** have your Docker Hub username appended before the image name in the format `username/image-name` if you want to push to Docker Hub. If you don't include the username, the push **will fail**.
 
 ### 2.29 `.dockerignore` — Excluding Files from the Build Context
 
