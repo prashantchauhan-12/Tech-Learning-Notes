@@ -1329,6 +1329,8 @@ Your applications are already containerized via Docker; Kubernetes is the layer 
 ### 4.2.2 Kubernetes Architecture — Control Plane & Worker Nodes
 
 Kubernetes operates in a **cluster model** = Control Plane + Worker Nodes.
+<img width="872" height="502" alt="image" src="https://github.com/user-attachments/assets/e7e1f730-8825-4abc-84db-95388179d5e4" />
+
 
 ```
 Kubernetes Cluster
@@ -1345,6 +1347,8 @@ Kubernetes Cluster
 ```
 
 **What happens when you run `kubectl apply -f app.yaml`:**
+<img width="741" height="411" alt="image" src="https://github.com/user-attachments/assets/abe20111-48f1-421a-9fa9-be9b98058cf9" />
+
 1. **API Server** receives the request
 2. **Desired state** is saved in **etcd** (e.g., "3 replicas of nginx")
 3. **Scheduler** picks which worker node has enough CPU/memory to run the pod
