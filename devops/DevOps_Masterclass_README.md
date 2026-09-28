@@ -1572,7 +1572,49 @@ flowchart TD
 
 > 💡 **Summary:** Deployment = your instruction (what you want). Controller Manager = the enforcer (makes sure it happens). You define Deployments; the Controller Manager manages them behind the scenes.
 
-### 4.6 Hands-On Demo: Deploying Nginx, Exposing It, and Watching Self-Healing
+### 4.6 Kubernetes Services — Deep Dive on All 4 Types
+
+**Why Services exist at all:** a Pod is **invisible to the outside world** by default, and Pods are inherently unstable — they crash and restart, and there's no guarantee their IP address stays the same across restarts. A **Service** solves this by giving your application a **stable, permanent IP/identity** that other apps (and, depending on type, the outside world) can reliably reach — regardless of which underlying Pods come and go.
+
+```mermaid
+flowchart LR
+    Internet((Internet / Browser)) -->|Public IP / DNS| LB[LoadBalancer Service]
+    Internet -->|"NodeIP:NodePort (30000-32767)"| NP[NodePort Service]
+    LB --> PodA[Pod]
+    NP --> PodB[Pod]
+    PodC["Pod (Service A)"] <-->|"ClusterIP — internal only"| PodD["Pod (Service B)"]
+    ExtDNS[(External DB / 3rd-party API)] <-->|ExternalName Service| PodE[Pod]
+```
+
+| Service Type | What it does | Accessible from browser? | Best used for |
+|---|---|---|---|
+| **ClusterIP** (default) | Exposes the app **only within the cluster** | ❌ No | Service-to-service / microservice-to-microservice communication where you specifically **don't** want external exposure |
+| **NodePort** | Exposes the app on `<NodeIP>:<Port>`, port range **30000–32767** | ✅ Yes, via IP + port | **Local testing, demos, or learning Kubernetes** — generally *not* used as-is in real production |
+| **LoadBalancer** | Provisions an actual **cloud load balancer**, giving a public IP or DNS name | ✅ Yes, via public internet | **Real production traffic with real users** — this is the type that "works best on cloud services like AWS, GCP, Azure" since it needs a cloud provider to actually create the load balancer |
+| **ExternalName** | Maps the Service to an external DNS name | N/A (outbound mapping) | Connecting to an **external database or third-party API** from inside the cluster; described as advanced and rarely used |
+
+**Decision table:**
+- Need internal-only microservice-to-microservice communication? → **ClusterIP**
+- Just testing/learning locally, want quick browser access? → **NodePort**
+- Shipping to real users in production? → **LoadBalancer**
+- Need to reach an external DB/API from inside the cluster? → **ExternalName**
+
+**Service YAML example (LoadBalancer):**
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: myapp
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+```
+### 4.7 Hands-On Demo: Deploying Nginx, Exposing It, and Watching Self-Healing
 
 **Step 1 — Create a Deployment:**
 ```bash
@@ -1770,50 +1812,6 @@ kubectl rollout status deployment/web
 
 > 💡 **How this works in a real CI/CD workflow:** When you make code changes, you create a new Docker image with a new tag (e.g., `myapp:v2`), push it to Docker Hub or another registry, and then in Kubernetes you run `kubectl set image` with the new tag. Kubernetes automatically pulls the new image and performs a zero-downtime rolling update.
 
-
-
-### 4.7 Kubernetes Services — Deep Dive on All 4 Types
-
-**Why Services exist at all:** a Pod is **invisible to the outside world** by default, and Pods are inherently unstable — they crash and restart, and there's no guarantee their IP address stays the same across restarts. A **Service** solves this by giving your application a **stable, permanent IP/identity** that other apps (and, depending on type, the outside world) can reliably reach — regardless of which underlying Pods come and go.
-
-```mermaid
-flowchart LR
-    Internet((Internet / Browser)) -->|Public IP / DNS| LB[LoadBalancer Service]
-    Internet -->|"NodeIP:NodePort (30000-32767)"| NP[NodePort Service]
-    LB --> PodA[Pod]
-    NP --> PodB[Pod]
-    PodC["Pod (Service A)"] <-->|"ClusterIP — internal only"| PodD["Pod (Service B)"]
-    ExtDNS[(External DB / 3rd-party API)] <-->|ExternalName Service| PodE[Pod]
-```
-
-| Service Type | What it does | Accessible from browser? | Best used for |
-|---|---|---|---|
-| **ClusterIP** (default) | Exposes the app **only within the cluster** | ❌ No | Service-to-service / microservice-to-microservice communication where you specifically **don't** want external exposure |
-| **NodePort** | Exposes the app on `<NodeIP>:<Port>`, port range **30000–32767** | ✅ Yes, via IP + port | **Local testing, demos, or learning Kubernetes** — generally *not* used as-is in real production |
-| **LoadBalancer** | Provisions an actual **cloud load balancer**, giving a public IP or DNS name | ✅ Yes, via public internet | **Real production traffic with real users** — this is the type that "works best on cloud services like AWS, GCP, Azure" since it needs a cloud provider to actually create the load balancer |
-| **ExternalName** | Maps the Service to an external DNS name | N/A (outbound mapping) | Connecting to an **external database or third-party API** from inside the cluster; described as advanced and rarely used |
-
-**Decision table:**
-- Need internal-only microservice-to-microservice communication? → **ClusterIP**
-- Just testing/learning locally, want quick browser access? → **NodePort**
-- Shipping to real users in production? → **LoadBalancer**
-- Need to reach an external DB/API from inside the cluster? → **ExternalName**
-
-**Service YAML example (LoadBalancer):**
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: myapp-service
-spec:
-  type: LoadBalancer
-  selector:
-    app: myapp
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-```
 
 ### 4.8 ConfigMaps & Secrets
 
