@@ -1371,21 +1371,112 @@ Kubernetes Cluster
 
 ### 4.4 Setting Up Kubernetes Locally
 
-Two popular local options (Docker Desktop's built-in option is used for the hands-on demos):
+#### 4.4.1 Understanding the Kubernetes Tools (from kubernetes.io → Install Tools)
 
-| Tool | Notes |
-|---|---|
-| **Docker Desktop's built-in Kubernetes** | Enable via *Docker Desktop → Settings → Kubernetes → "Enable Kubernetes"*. Lets you choose the underlying engine (`kubeadm` or `kind`). Installation takes a few minutes and requires an active internet connection (it pulls the Kubernetes control-plane images). This is the option used for the course's live demos. |
-| **Minikube** | A very popular standalone tool for running a local (single- or multi-node) Kubernetes cluster; has its own official getting-started guide with resource requirements (roughly 2 CPUs, 2 GB free memory, 20 GB disk). |
-| **`kubeadm`** | A lower-level tool also used to create/manage clusters (this is one of the two engine options Docker Desktop lets you pick from). |
+When you visit the official Kubernetes website (`kubernetes.io`) → Documentation → Tasks → **Install Tools**, you'll see several tools listed. Understanding what each one does (and does *not* do) is critical:
 
-> ⚠️ **Important gotcha:** `kubectl` **does not itself run a cluster** — it is *only* a client tool that talks to whichever cluster your current **context** points to. If `kubectl get nodes` returns nothing or garbled output, it may be because your `kubectl` **context is pointed at the wrong cluster** (e.g., Minikube instead of Docker Desktop). Fix:
-> ```bash
-> kubectl config get-contexts        # see which context is currently active / available
-> kubectl config use-context docker-desktop   # switch to the Docker Desktop cluster
-> kubectl get nodes                  # now correctly shows the node
-> ```
-> **Lesson:** if `kubectl` commands return empty/odd results after installing Kubernetes, check your **context** before assuming the cluster is broken.
+**`kubectl` (pronounced "cube-cuttle", "cube-control", or "cube-C-T-L"):**
+
+`kubectl` is the **Kubernetes command-line tool**. It allows you to **interact with** Kubernetes clusters — deploy applications, inspect and manage cluster resources, view logs, and everything else. Think of it as the remote control for your Kubernetes cluster.
+
+> ⚠️ **Critical distinction:** `kubectl` does **NOT** run or set up Kubernetes clusters. It is **only** a client tool that talks to whichever cluster is already running. You need a Kubernetes cluster running first (via Docker Desktop, Minikube, kind, or a cloud provider), and then you use `kubectl` to interact with it.
+
+If you're using Docker Desktop with Kubernetes enabled, **`kubectl` comes pre-packaged** — you don't need to install it separately. It's available out of the box.
+
+```bash
+# Verify kubectl is installed and check its version
+kubectl version --client
+# Output: Client Version: v1.34.1 (version number may differ)
+```
+
+**`kind` (Kubernetes IN Docker):**
+
+`kind` lets you run Kubernetes clusters **inside Docker containers**. It requires either Docker or Podman installed. This is one of the engine options Docker Desktop lets you pick from when enabling Kubernetes. It's an alternative way to run Kubernetes locally.
+
+**`minikube`:**
+
+Minikube is a popular standalone tool that runs Kubernetes in its own VM. Key facts:
+- If you're using Minikube, **you don't need Docker Desktop** — Minikube is self-contained
+- Runs an **all-in-one or multi-node** local cluster on your personal computer
+- Has resource requirements: roughly **2 CPUs, 2 GB free memory, 20 GB disk**
+- Very popular — you'll find a lot of tutorials using Minikube
+- The commands are **slightly different** from production Kubernetes commands (whereas Docker Desktop's commands are very close to production)
+
+**`kubeadm`:**
+
+A lower-level tool used to **create and manage** Kubernetes clusters. This is one of the two engine options Docker Desktop lets you pick from (the other being `kind`).
+
+**Summary table — what each tool does:**
+
+| Tool | Does it RUN a cluster? | Does it INTERACT with a cluster? | Notes |
+|---|---|---|---|
+| **`kubectl`** | ❌ No | ✅ Yes — this is its entire purpose | Pre-installed with Docker Desktop Kubernetes |
+| **`kind`** | ✅ Yes — runs K8s inside Docker containers | ❌ (use kubectl for that) | Alternative to Minikube |
+| **`minikube`** | ✅ Yes — runs K8s in its own VM | ❌ (use kubectl for that) | Self-contained, doesn't need Docker Desktop |
+| **`kubeadm`** | ✅ Yes — creates/manages clusters | ❌ (use kubectl for that) | Lower-level, also a Docker Desktop engine option |
+
+#### 4.4.2 Setting Up Kubernetes via Docker Desktop (Step-by-Step)
+
+This is the approach used in the course because **the commands you run are very close to the commands you'd run in production** (unlike Minikube where some commands differ).
+
+**Steps:**
+1. Open **Docker Desktop** (must already be installed)
+2. Click the **Settings** icon (top-right gear icon)
+3. In the left sidebar, click **Kubernetes**
+4. Check **"Enable Kubernetes"** — this starts a Kubernetes engine/multi-node cluster when Docker Desktop starts
+5. You'll be asked whether to use **`kubeadm`** or **`kind`** as the underlying engine — keep the default selected
+6. Leave **"Show system containers"** **unchecked** — Kubernetes may run internal containers that would clutter your `docker ps` output and confuse you
+7. Click **Apply** → then **Install** when prompted
+8. Wait a few minutes — Docker Desktop will pull all the Kubernetes control-plane images (requires an active internet connection)
+9. Once complete, you'll see **"Kubernetes running"** in the bottom status bar of Docker Desktop, alongside Docker's own status
+10. A new **Kubernetes** option appears in the left sidebar menu of Docker Desktop
+
+> 💡 **"Show system containers" explained:** Kubernetes internally runs some Docker containers for its own control plane components. If you enable this option, those internal containers will appear in your `docker ps` output, which can be confusing when you're also running your own application containers. Keep it unchecked.
+
+#### 4.4.3 Verifying the Setup — First `kubectl` Commands
+
+Once Kubernetes is running in Docker Desktop, verify everything works:
+
+```bash
+# Check kubectl version
+kubectl version --client
+# Output: Client Version: v1.34.x (your version may differ)
+
+# Check the nodes in the cluster
+kubectl get nodes
+# Output: NAME             STATUS   ROLES           AGE   VERSION
+#         docker-desktop   Ready    control-plane   5m    v1.34.x
+```
+
+If `kubectl get nodes` shows `docker-desktop` with status `Ready`, your local Kubernetes cluster is successfully running.
+
+#### 4.4.4 The Context Gotcha — Why `kubectl get nodes` May Show Empty/Garbled Output
+
+> ⚠️ **This is the #1 beginner issue with kubectl.** If `kubectl get nodes` returns nothing, garbled output, or errors, **the cluster is probably fine** — the problem is almost always that `kubectl` is **pointing to the wrong cluster context**.
+
+**What is a context?** `kubectl` can be configured to talk to multiple Kubernetes clusters (e.g., Docker Desktop, Minikube, a cloud cluster). A **context** tells `kubectl` which cluster to talk to. If you've ever used Minikube or another Kubernetes tool in the past, your `kubectl` might still be pointed at that old cluster instead of Docker Desktop.
+
+**Real scenario from the course:** The instructor had previously used Minikube on his machine. After enabling Kubernetes in Docker Desktop, `kubectl get nodes` returned garbled/empty output. The reason: `kubectl`'s context was still set to Minikube (which was not running), not Docker Desktop.
+
+**How to diagnose and fix:**
+
+```bash
+# Step 1: See all available contexts and which one is currently active (marked with *)
+kubectl config get-contexts
+# Output shows all contexts — look for the * (asterisk) marking the active one
+# If * is next to "minikube" but you want "docker-desktop", that's the problem
+
+# Step 2: Switch to the Docker Desktop context
+kubectl config use-context docker-desktop
+# Output: Switched to context "docker-desktop".
+
+# Step 3: Verify — now it correctly shows the Docker Desktop node
+kubectl get nodes
+# Output: NAME             STATUS   ROLES           AGE   VERSION
+#         docker-desktop   Ready    control-plane   10m   v1.34.x
+```
+
+**Lesson:** If `kubectl` commands return empty or odd results after installing Kubernetes, **always check your context first** before assuming the cluster is broken. This is especially likely if you've ever used Minikube, kind, or any other Kubernetes tool on the same machine.
 
 ### 4.5 Core Concepts: Pods, Deployments, ReplicaSets
 
@@ -1396,7 +1487,7 @@ flowchart TB
             API[API Server]
             Sched[Scheduler]
             CM[Controller Manager]
-            ETCD[(etcd - cluster state)]
+            ETCD["etcd - cluster state"]
         end
         subgraph Node1["Worker Node"]
             Deploy[Deployment: web] --> RS[ReplicaSet]
@@ -1405,34 +1496,122 @@ flowchart TB
             RS --> Pod3((Pod: nginx))
         end
     end
-    Dev([kubectl / Developer]) --> API
+    Dev(["kubectl / Developer"]) --> API
 ```
 
 | Term | Definition |
 |---|---|
-| **Pod** | "The actual running app" — a container wrapped in a Kubernetes layer. It's "like a house where your app lives and runs." **The smallest deployable unit in Kubernetes.** |
-| **Deployment** | A component that runs your app **continuously**. If a pod crashes, Kubernetes restarts it automatically via the Deployment. It's also what lets you request more copies (replicas) of your app. |
-| **ReplicaSet** | Created and managed automatically by a Deployment. Its job: if a pod crashes and is supposed to be available, the ReplicaSet **recreates it**, and it continuously ensures the **desired replica count** matches the actual running count. |
-| **Node** | A single machine (VM or physical) in the cluster that actually runs pods. |
-| **Cluster** | A set of nodes managed together as one logical unit ("multi-node cluster focus" is what distinguishes Kubernetes from plain Docker). |
+| **Pod** | "The actual running app" — a container wrapped in a Kubernetes layer. It's "like a house where your app lives and runs." **The smallest deployable unit in Kubernetes.** A pod can contain **one container** (most common) or **multiple containers** running together. Kubernetes does not deploy containers directly — it deploys pods, and within pods your containers run. |
+| **Deployment** | A component/instruction that you (the developer) define. It tells Kubernetes: "run my app continuously with X replicas." If a pod crashes, Kubernetes restarts it automatically via the Deployment. It's also what lets you request more copies (replicas) of your app, and perform **rolling updates** (zero-downtime version changes). |
+| **ReplicaSet** | Created and managed **automatically** by a Deployment — you never create a ReplicaSet directly. Its job: if a pod crashes and is supposed to be available, the ReplicaSet **recreates it**, and it continuously ensures the **desired replica count** matches the actual running count. |
+| **Node** | A single machine (VM or physical) in the cluster that actually runs pods. Each worker node is usually a virtual machine. There can be multiple worker nodes depending on the size of application you are running. |
+| **Cluster** | A group of machines (nodes) running Kubernetes — managed together as one logical unit. "Multi-node cluster focus" is what distinguishes Kubernetes from plain Docker. |
+
+#### 4.5.1 Creating Your First Deployment — `kubectl create deployment`
+
+```bash
+# First, check if any pods are running
+kubectl get pods
+# Output: No resources found in default namespace.
+
+# Create a deployment named "web" using the nginx image
+kubectl create deployment web --image=nginx
+# Output: deployment.apps/web created
+```
+
+**Breaking down the command:**
+
+| Part | Meaning |
+|---|---|
+| `kubectl` | The CLI tool to interact with the Kubernetes cluster |
+| `create deployment` | The command instructing Kubernetes to create a new Deployment object |
+| `web` | The **name** of the Deployment being created |
+| `--image=nginx` | The Docker image to use — pulled from Docker Hub by default |
+
+```bash
+# Verify the pod was created
+kubectl get pods
+# Output:
+# NAME                   READY   STATUS    RESTARTS   AGE
+# web-7d9f...-x2k1p      1/1     Running   0          10s
+```
+
+> 💡 **Key question: Did we create a pod?** No — we created a **Deployment**, and as a result of creating the Deployment, a pod was created **by Kubernetes**. As a developer, you **do not directly create pods** — pods are created by the control plane (specifically the Controller Manager) based on the Deployment you defined.
+
+#### 4.5.2 Deployment vs Controller Manager — Clearing the Confusion
+
+> This is a common source of confusion for beginners that is explicitly addressed in the course.
+
+When learning the Kubernetes architecture, you learn that the **Controller Manager** (a component of the Control Plane) monitors pods and restarts them if they crash. Then when learning about **Deployments**, you learn that Deployments also ensure your app keeps running and restarts crashed pods. So which one actually does the work?
+
+**The answer — they serve different roles:**
+
+```mermaid
+flowchart TD
+    You["👤 You (Developer)"] -->|"Define desired state"| Deploy["📋 Deployment\n(YOUR instruction)\nreplicas: 3\nimage: nginx"]
+    Deploy -->|"Stored by"| API["API Server → etcd"]
+    API -->|"Reads & enforces"| CM["🔧 Controller Manager\n(THE worker)\nContinuously checks:\nAre 3 replicas running?\nIf not → fix it"]
+    CM -->|"Creates/Manages"| RS["ReplicaSet"]
+    RS -->|"Creates"| Pods["Pods (running containers)"]
+```
+
+| | Deployment | Controller Manager |
+|---|---|---|
+| **What is it?** | An **instruction** (configuration) that comes from **you** | A **worker component** inside the Control Plane |
+| **Who creates it?** | You, the developer — you write deployment YAML files or run `kubectl create deployment` | It exists as part of Kubernetes itself — always running in the Control Plane |
+| **What does it do?** | **Declares** the desired state: "I want 3 replicas of my app running at all times" | **Enforces** the desired state: continuously checks the Deployment, and if the actual state doesn't match (e.g., a pod crashed), it **fixes it** |
+| **Analogy** | The **blueprint/instruction manual** | The **worker who reads the manual and does the work** |
+
+**How they work together — the flow:**
+1. You create a **Deployment YAML file** (declaring: "3 replicas of nginx")
+2. You apply it: `kubectl apply -f deployment.yaml`
+3. The **API Server** stores this desired state in **etcd**
+4. The **Controller Manager** sees it, creates a **ReplicaSet**, which creates the **pods**
+5. The Controller Manager **continuously watches** — if a pod crashes, it sees that the actual count (2) doesn't match the desired count (3), and it creates a new pod to fix it
+
+> 💡 **Summary:** Deployment = your instruction (what you want). Controller Manager = the enforcer (makes sure it happens). You define Deployments; the Controller Manager manages them behind the scenes.
 
 ### 4.6 Hands-On Demo: Deploying Nginx, Exposing It, and Watching Self-Healing
 
-**Step 1 — Create a Deployment** (conceptually — a `deployment.yaml` named `web` running the `nginx` image is applied, creating a Pod under the hood):
+**Step 1 — Create a Deployment:**
 ```bash
+# First check — no pods are running yet
 kubectl get pods
-# shows a pod for the 'web' deployment already running, e.g. web-7d9f...-x2k1p
+# Output: No resources found in default namespace.
+
+# Create a deployment named "web" using the nginx image
+kubectl create deployment web --image=nginx
+# Output: deployment.apps/web created
+
+# Verify the pod was created
+kubectl get pods
+# Output:
+# NAME                   READY   STATUS    RESTARTS   AGE
+# web-7d9f...-x2k1p      1/1     Running   0          10s
 ```
+
+> 💡 **Important:** We created a **Deployment**, not a pod directly. The Deployment told Kubernetes "I want one instance of nginx running," and Kubernetes (via the Controller Manager → ReplicaSet) created the pod for us. Since we didn't specify `--replicas`, it defaulted to **1 replica**.
 
 **Step 2 — Expose it via a NodePort Service, so it's reachable from the browser:**
 ```bash
 kubectl expose deployment web --type=NodePort --port=80
+# Output: service/web exposed
 ```
 *(Note: capitalization of `NodePort` matters. `--port=80` is the port the Service listens on / forwards to, matching nginx's default port 80 inside the container.)*
 
+**Understanding the command:**
+
+| Part | Meaning |
+|---|---|
+| `kubectl expose deployment` | Expose a deployment as a Service |
+| `web` | Name of the deployment to expose (must match the deployment we created) |
+| `--type=NodePort` | Service type — makes it accessible from the browser via IP + port |
+| `--port=80` | The port within the container (nginx defaults to port 80) |
+
 Confirming:
 ```bash
-kubectl get svc            # or: kubectl get svc web
+kubectl get svc            # list ALL services
+kubectl get svc web        # details of just the 'web' service
 ```
 Output interpretation:
 - `CLUSTER-IP` → the service's internal-only IP (safe to ignore for local access purposes)
@@ -1450,33 +1629,147 @@ flowchart LR
     Pod --> Container[nginx container inside the Pod]
 ```
 
+> 💡 **The layered structure summarized:** At the bottom, you have an **nginx container** (just a regular Docker container). This container runs inside a **Pod** (Kubernetes' smallest deployable unit). The pod was created by a **Deployment** (your instruction to Kubernetes). The pod is exposed to the outside world via a **Service** (type: NodePort). The service is accessible on your machine at `localhost:<nodePort>`.
+
 **Step 4 — Prove self-healing by killing a pod on purpose:**
+
+Open two terminal windows for the best demonstration:
+
 ```bash
-kubectl get pods                 # note the pod name
+# Terminal 1: Watch pods in real-time
+kubectl get pods -w
+
+# Terminal 2: Delete the running pod
+kubectl get pods                 # note the pod name, e.g. web-7d9f...-x2k1p
 kubectl delete pod <pod-name>    # deliberately delete it
+```
+
+In Terminal 1, you'll see the full lifecycle in real-time:
+1. The original pod was `Running`
+2. After the delete command: the pod shows `Terminating`
+3. Immediately, a **new pod** appears in `Pending` state
+4. The new pod moves to `ContainerCreating`
+5. The old pod deletion completes
+6. The new pod moves to `Running`
+
+```bash
 kubectl get pods                 # a NEW pod has already been created automatically!
 ```
-The old pod is gone, but a **brand-new pod** (new name, same Deployment) is already up. This is the ReplicaSet doing its job: the Deployment declared a desired state (e.g., 1+ replicas of this app), and Kubernetes continuously reconciles reality to match that desired state — with **zero manual intervention**.
 
-**Step 5 — Prove autoscaling / manual scaling with a `-w` (watch) demo:**
+The old pod is gone, but a **brand-new pod** (new name, same Deployment) is already up. This is the **ReplicaSet** doing its job: the Deployment declared a desired state (1 replica of this app), and Kubernetes continuously reconciles reality to match that desired state — with **zero manual intervention**. This process is called **Kubernetes self-healing**.
+
+**Step 5 — Prove manual scaling with a `-w` (watch) demo:**
+
 ```bash
-kubectl get pods -w                     # watch mode — live updates as pods change
+# Terminal 1: Watch mode — live updates as pods change
+kubectl get pods -w
+
+# Terminal 2: Scale the deployment to 5 replicas
 kubectl scale deployment web --replicas=5
+# Output: deployment.apps/web scaled
 ```
-Live output showed: 1 pod already running → **4 new pods created** → total of **5 pods** running. Exiting watch mode and running `kubectl get pods` plainly confirms 5 pods, and:
+
+Live output showed: 1 pod already running → **4 new pods created** → total of **5 pods** running.
+
 ```bash
-kubectl describe replicaset <replicaset-name>
+# Exit watch mode (Ctrl+C on Windows, Cmd+C on Mac)
+# Verify all 5 pods are running
+kubectl get pods
+# Shows 5 pods, all in Running status
 ```
-...shows in its output: **Desired: 5, Current: 5, Ready: 5** — the concrete proof that Kubernetes is continuously reconciling the actual state to match the declared desired state, which is the entire value proposition over plain Docker.
+
+**Verify via ReplicaSet:**
+```bash
+# Get the replica set
+kubectl get rs
+# Output shows: DESIRED=5, CURRENT=5, READY=5
+
+# Describe for full details
+kubectl describe replicaset <replicaset-name>
+# Shows: Desired: 5, Current: 5, Ready: 5
+# Also shows which deployment controls this ReplicaSet
+```
+
+**How it works behind the scenes:** You updated the Deployment (saying "I want 5 replicas"). Behind the scenes, the **ReplicaSet** was updated to desired count of 5. Kubernetes saw the current state was 1, so it created 4 more pods to match the desired state of 5.
+
+**Scale back down:**
+```bash
+# E.g., the sale is over, traffic is back to normal — scale down
+kubectl scale deployment web --replicas=1
+# Output: deployment.apps/web scaled
+
+# The extra 4 pods will show as "Terminating" and then disappear
+kubectl get pods
+# Only 1 pod remains running
+```
+
+> 💡 **Real-world scenario:** You run an e-commerce website. Black Friday / New Year sale → scale up your order service to 10 replicas. Sale ends → scale back down to 2 replicas. All done with a single command, and Kubernetes handles the rest.
 
 **Step 6 — Debugging inside a running Pod:**
 ```bash
 kubectl get pods
 kubectl exec -it <pod-name> -- sh
 # now inside the pod's shell:
-printenv | grep DB_PASSWORD
+ls                              # see filesystem
+cat /etc/nginx/nginx.conf       # read config files
+pwd                             # check working directory
+printenv | grep DB_PASSWORD     # check environment variables
+exit                            # leave the pod shell
 ```
-This confirms whether an environment variable/secret was correctly injected into the running container — exactly analogous to `docker exec`, but at the Kubernetes/Pod level. The transcript notes this works identically for containers written in different languages (Python, Node.js) — each expects its own env vars (e.g., `PORT`, with sensible defaults like `3000` if not overridden), and the mechanism for passing them into the pod is language-agnostic.
+This confirms whether an environment variable/secret was correctly injected into the running container — exactly analogous to `docker exec`, but at the Kubernetes/Pod level.
+
+### 4.6.1 Rolling Updates — Zero-Downtime Deployments
+
+When you need to update your application to a new version in production, you don't want any downtime. Kubernetes handles this via **rolling updates** — it creates new pods with the new image version, waits for them to be ready, and then terminates the old pods. Traffic never stops.
+
+**Update the image version of a running deployment:**
+```bash
+# Currently running nginx:latest — update to a specific version
+kubectl set image deployment/web nginx=nginx:1.25
+# Output: deployment.apps/web image updated
+```
+
+**Breaking down the command:**
+
+| Part | Meaning |
+|---|---|
+| `kubectl set image` | Update the image used by a deployment |
+| `deployment/web` | Target the deployment named "web" |
+| `nginx=nginx:1.25` | Container name (`nginx`) = new image (`nginx:1.25`) |
+
+**Watch the rollout happen:**
+```bash
+kubectl rollout status deployment/web
+# Output:
+# Waiting for deployment "web" rollout to finish: 1 old replicas are pending termination...
+# deployment "web" successfully rolled out
+```
+
+**What happens during a rolling update:**
+1. New pods are created with the new image version
+2. The new pods start and become ready
+3. The old pods (with the old image) are terminated
+4. Traffic is seamlessly switched from old to new — **zero downtime**
+
+**Verify the image was updated:**
+```bash
+kubectl get pods                        # get the new pod name (it changed!)
+kubectl describe pod <new-pod-name>
+# In the output, look for:
+#   Image: nginx:1.25                    ← confirms new version
+#   Events: ... Successfully pulled image "nginx:1.25" ...
+```
+
+**Roll out another update (e.g., back to latest):**
+```bash
+kubectl set image deployment/web nginx=nginx:latest
+kubectl rollout status deployment/web
+# Output: deployment "web" successfully rolled out
+```
+
+> 💡 **How this works in a real CI/CD workflow:** When you make code changes, you create a new Docker image with a new tag (e.g., `myapp:v2`), push it to Docker Hub or another registry, and then in Kubernetes you run `kubectl set image` with the new tag. Kubernetes automatically pulls the new image and performs a zero-downtime rolling update.
+
+
 
 ### 4.7 Kubernetes Services — Deep Dive on All 4 Types
 
@@ -2211,49 +2504,56 @@ docker compose down
 
 ### Kubernetes (`kubectl`)
 ```bash
-# Context
-kubectl config get-contexts
-kubectl config use-context docker-desktop
+# Context management (check this FIRST if commands return odd results!)
+kubectl config get-contexts                # see all contexts, * marks the active one
+kubectl config use-context docker-desktop  # switch to Docker Desktop cluster
+kubectl version --client                   # check kubectl client version
 
-# Nodes / Pods
-kubectl get nodes
-kubectl get pods
-kubectl get pods -w
-kubectl describe pod <name>
-kubectl exec -it <pod> -- sh
-kubectl exec -it <pod> -- printenv
-kubectl delete pod <name>
+# Nodes
+kubectl get nodes                          # list nodes in the cluster
+
+# Pods
+kubectl get pods                           # list running pods
+kubectl get pods -w                        # watch mode — live updates
+kubectl get pods --show-labels             # show labels on pods
+kubectl describe pod <name>                # full details: image, IP, events, status
+kubectl logs <pod-name>                    # view pod logs
+kubectl exec -it <pod> -- sh              # shell into a running pod
+kubectl exec -it <pod> -- printenv        # view env vars inside a pod
+kubectl delete pod <name>                  # delete a pod (auto-recreated if managed by Deployment)
 
 # Labels
-kubectl get pods --show-labels
-kubectl label pod <name> app-               # remove label
-kubectl label pod <name> app=web            # add/update label
+kubectl label pod <name> app-              # remove label "app" from a pod
+kubectl label pod <name> app=web           # add/update label
 
-# Deployments / scaling
-kubectl get deployments
-kubectl get deployments <name> -o yaml      # export as YAML
-kubectl scale deployment <name> --replicas=5
-kubectl set image deployment/<name> <container>=<image>:<tag>
-kubectl rollout status deployment/<name>
+# Deployments
+kubectl create deployment <name> --image=<image>   # create a new deployment
+kubectl get deployments                    # list all deployments
+kubectl get deployments <name> -o yaml     # export deployment config as YAML
+kubectl scale deployment <name> --replicas=5       # scale to N replicas
+kubectl set image deployment/<name> <container>=<image>:<tag>  # update image (rolling update)
+kubectl rollout status deployment/<name>   # watch rollout progress
+kubectl delete deployment <name>           # delete a deployment
 
 # ReplicaSets
-kubectl get replicaset
-kubectl describe replicaset <name>
+kubectl get rs                             # list replica sets (short for replicaset)
+kubectl get replicaset                     # same as above (full name)
+kubectl describe replicaset <name>         # shows Desired / Current / Ready counts
 
 # Services
-kubectl expose deployment <name> --type=NodePort --port=80
-kubectl get svc
-kubectl get svc <name>
-kubectl get svc <name> -o yaml
+kubectl expose deployment <name> --type=NodePort --port=80   # expose deployment as service
+kubectl get svc                            # list all services
+kubectl get svc <name>                     # details of a specific service
+kubectl get svc <name> -o yaml             # export service config as YAML
 
-# Manifests
+# Applying & deleting YAML manifests
 kubectl apply -f deployment.yaml
 kubectl apply -f service.yaml
 kubectl apply -f configmap.yaml
 kubectl apply -f secret.yaml
-kubectl apply -f <folder>/                  # apply all manifests in folder
-kubectl delete -f <folder>/                 # delete all from folder
-kubectl delete all --all                    # delete everything
+kubectl apply -f <folder>/                 # apply ALL manifests in a folder
+kubectl delete -f <folder>/                # delete ALL resources defined in a folder
+kubectl delete all --all                   # delete all pods, services, deployments
 ```
 
 ### AWS EKS
@@ -2344,6 +2644,23 @@ eksctl delete cluster --name <cluster> --region <region>
 | **Build Context** | The directory Docker uses when building an image — specified by the `.` at the end of `docker build -t name .` |
 | **Layer Caching** | Docker's optimization where unchanged Dockerfile instructions reuse cached layers from previous builds — order of instructions matters for cache efficiency |
 | **Terraform** | Infrastructure-as-Code tool for provisioning cloud infrastructure via code *(mentioned as course scope, not hands-on in this transcript)* |
+| **`kind` (Kubernetes IN Docker)** | A tool that runs Kubernetes clusters inside Docker containers — requires Docker or Podman; one of the engine options in Docker Desktop |
+| **`minikube`** | A standalone tool that runs Kubernetes in its own VM — self-contained, doesn't need Docker Desktop; very popular for tutorials |
+| **`kubeadm`** | A lower-level tool for creating and managing Kubernetes clusters — also available as a Docker Desktop engine option |
+| **Control Plane** | The "brain" of a Kubernetes cluster — decides what should happen; contains API Server, Scheduler, Controller Manager, and etcd |
+| **Worker Node** | A machine that actually runs your application pods — contains kubelet, kube-proxy, container runtime, and the pods themselves |
+| **API Server** | The central entry gate of Kubernetes — all commands (CLI, UI, CI/CD) go through it; coordinates everything in the cluster |
+| **Scheduler** | Decides which worker node should run a new pod — looks at CPU/memory availability to pick the best node |
+| **Controller Manager** | A Control Plane component that continuously watches the cluster state and ensures reality matches the desired state — if a pod crashes, it restarts it; the "worker who reads and enforces the Deployment instructions" |
+| **etcd** | The "memory/database" of Kubernetes — stores the entire cluster state, including desired vs actual state; if etcd is lost, the cluster's memory is lost |
+| **kubelet** | An agent running on each worker node that talks to the Control Plane, starts/stops containers, and reports container health |
+| **kube-proxy** | Runs on every node — maintains network rules and enables communication between pods and services |
+| **Container Runtime** | The component on each worker node that actually runs containers (e.g., containerd, Docker Engine) |
+| **Self-Healing** | Kubernetes' ability to automatically detect crashed/failed pods and recreate them to match the desired state — with zero manual intervention |
+| **Rolling Update** | Kubernetes' zero-downtime deployment strategy — creates new pods with the new image version, then terminates old pods; traffic never stops |
+| **Rollout** | The process of deploying a new version of your application in Kubernetes — tracked via `kubectl rollout status` |
+| **Desired State** | The configuration you declare (e.g., "3 replicas of nginx") — Kubernetes continuously works to make reality match this declaration |
+| **Replicas** | The number of identical pod copies you want running — defined in the Deployment, enforced by the ReplicaSet |
 
 ---
 
