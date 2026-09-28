@@ -1370,6 +1370,7 @@ Kubernetes Cluster
 | Analogy | The engine | **The autopilot** |
 
 ### 4.4 Setting Up Kubernetes Locally
+<img width="921" height="335" alt="image" src="https://github.com/user-attachments/assets/eedcbf19-e0d5-4766-8815-e7979b28aeed" />
 
 #### 4.4.1 Understanding the Kubernetes Tools (from kubernetes.io → Install Tools)
 
