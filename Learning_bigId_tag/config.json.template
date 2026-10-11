@@ -1,0 +1,7 @@
+{
+  "base_url": "https://<your-bigid-host>",
+  "username": "<service-account-username>",
+  "password": "<service-account-password>",
+  "verify_ssl": true,
+  "request_delay": 0.5
+}

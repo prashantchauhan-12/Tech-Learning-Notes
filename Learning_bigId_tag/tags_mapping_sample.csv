@@ -1,0 +1,6 @@
+data_source_name,new_tags
+my-postgres-prod,"GDPR,Contains-PII,EU,Production"
+salesforce-crm,"CCPA,Contains-PII,US,Production"
+s3-analytics-bucket,"Finance,No-PII,US,Production"
+snowflake-warehouse,"GDPR,CCPA,Contains-SPI,Production"
+azure-blob-hr,"HR,Contains-PII,HIPAA,EU,Production"
